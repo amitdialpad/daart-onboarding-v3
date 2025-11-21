@@ -111,6 +111,16 @@ src/
 **Current Phase:** Bug Fixes & Polish | Ready for EPD Team Review ✅
 
 ### Latest Updates (November 21, 2025):
+
+**Session 2: Deployment State Persistence Fix**
+- [x] **Deployment Persistence Issue Fixed**
+  - Added deployment state to agent store (channel, deployedAt, config)
+  - Created deployAgent(), updateDeploymentConfig(), unpublishAgent() actions
+  - DeployView now initializes from store on mount
+  - Deployment details now persist across navigation
+  - Shows "Live" status and "Deployment Details" card after deploying
+
+**Session 1: Navigation & Flow Improvements**
 - [x] **Navigation Links Enabled on "Ready to Test"**
   - Test, Deploy, Agent Studio & Knowledge links unlock when agent is ready
   - Monitor shows "Not Deployed" badge until deployment

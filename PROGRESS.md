@@ -499,3 +499,162 @@ None - all features implemented!
 - 🎯 Focus: Complete validation cards, test mode, overview page
 - 💡 Remember: NO EMOJIS in the UI
 - 🚀 Dev server runs on http://localhost:5175/ (or check current port)
+
+---
+
+## Session 2: Deployment State Persistence (November 21, 2025)
+
+### Problem Identified
+User reported: "Deploy your agent has some issue. After deploying when i come back to the page, it shows not deployed & I dont see the 'Deployment Details'"
+
+**Root Cause:** Deployment state was stored in local component refs (`deploymentStatus`, `selectedChannel`, `config`, `deployedAt`) in DeployView.vue. When navigating away and returning, the component remounted and reset all state to defaults.
+
+### Solution Implemented
+
+#### 1. Agent Store Enhancement
+**File:** `src/stores/agent.js`
+
+Added deployment section to state:
+```javascript
+deployment: {
+  channel: null, // 'chat' | 'email' | 'phone' | 'slack'
+  deployedAt: null,
+  config: {
+    greetingMessage: "Hi! I'm your AI assistant. How can I help you today?",
+    workingHours: '24/7',
+    fallbackBehavior: 'escalate',
+    escalationThreshold: '2'
+  }
+}
+```
+
+Added three new actions:
+- `deployAgent(channel, config)` - Saves deployment, sets status to 'deployed', marks onboarding complete
+- `updateDeploymentConfig(config)` - Updates config for live agents
+- `unpublishAgent()` - Removes deployment, sets status back to 'ready'
+
+#### 2. DeployView Persistence
+**File:** `src/views/DeployView.vue`
+
+Added `onMounted` hook to load state from store:
+```javascript
+onMounted(() => {
+  if (agentStore.deployment.channel) {
+    // Agent is deployed, load the deployment info
+    selectedChannel.value = agentStore.deployment.channel
+    deployedAt.value = agentStore.deployment.deployedAt
+    config.value = { ...agentStore.deployment.config }
+    deploymentStatus.value = 'live'
+  }
+})
+```
+
+Updated `confirmDeploy()` to persist to store:
+```javascript
+const confirmDeploy = () => {
+  // Deploy agent in store (persists deployment info)
+  agentStore.deployAgent(selectedChannel.value, config.value)
+  
+  // Update local state
+  deploymentStatus.value = 'live'
+  deployedAt.value = agentStore.deployment.deployedAt
+  
+  // Celebrate!
+  setTimeout(() => {
+    alert('Congratulations! Your agent is now live and ready to help customers.')
+  }, 300)
+}
+```
+
+Updated `handleUnpublish()` to use store:
+```javascript
+const handleUnpublish = () => {
+  if (confirm('Are you sure you want to unpublish your agent?...')) {
+    agentStore.unpublishAgent()
+    deploymentStatus.value = 'draft'
+    deployedAt.value = null
+    selectedChannel.value = null
+  }
+}
+```
+
+### Testing & Verification
+- Deployed agent with "Chat Widget" channel
+- Navigated to Overview, Test, Monitor pages
+- Returned to Deploy page - correctly showed:
+  - "Live" status badge
+  - "Your Agent is Live!" success message
+  - "Deployment Details" card with channel, timestamp, greeting, and status
+  - All action buttons (View Performance, Test Agent, Update Configuration, Unpublish)
+
+### Deployment to GitHub Pages
+```bash
+git add -A
+git commit -m "Fix deployment state persistence"
+git push origin main
+npm run build
+npx gh-pages -d dist
+```
+
+**Live Demo:** https://amitdialpad.github.io/daart-onboarding-v3/
+
+### Technical Notes
+- Pinia store provides reactive state persistence across component lifecycle
+- Store state survives navigation but NOT page refresh (browser refresh clears Pinia state)
+- For production, would need localStorage/sessionStorage or backend persistence
+- Current solution is sufficient for prototype UX validation
+
+### Status
+✅ **COMPLETE** - Deployment state now persists across navigation
+
+---
+
+## Current State Summary (November 21, 2025 - End of Session 2)
+
+### Fully Working Features
+1. **Onboarding Flow** - Complete conversational builder with 6 phases
+2. **Navigation System** - Conditional navigation based on agent status
+3. **Test Mode** - Simulated conversations with AI responses
+4. **Deployment** - Channel selection, configuration, with persistent state
+5. **Monitor Dashboard** - Performance metrics, conversations, recommendations
+6. **Agent Overview** - Summary cards and configuration review
+7. **Agent Studio** - Placeholder for visual workflow builder
+8. **Knowledge** - Placeholder for knowledge base management
+
+### Agent Status Flow
+- `draft` - Initial state (no agent created)
+- `in_progress` - Building agent in conversational flow
+- `ready` - Onboarding complete, ready to test/deploy
+- `deployed` - Live on selected channel
+
+### Navigation Access Control
+- **Overview** - Enabled when `hasCompletedOnboarding === true`
+- **Build** - Always accessible (returns to builder or redirects if deployed)
+- **Test** - Enabled when `hasCompletedOnboarding === true`
+- **Deploy** - Enabled when `hasCompletedOnboarding === true`
+- **Monitor** - Enabled only when `status === 'deployed'`
+- **Agent Studio** - Enabled when `hasCompletedOnboarding === true`
+- **Knowledge** - Enabled when `hasCompletedOnboarding === true`
+
+### Key Files Modified
+- `src/stores/agent.js` - Added deployment state and actions
+- `src/views/DeployView.vue` - Added persistence logic with onMounted
+
+### Known Limitations
+- State clears on browser refresh (expected for prototype)
+- Only "Chat Widget" channel is enabled (others marked "Coming Soon")
+- Monitor page shows placeholder charts
+- Agent Studio shows preview/placeholder content
+
+### Ready For
+✅ EPD team review and feedback
+✅ User testing sessions
+✅ Design iteration based on feedback
+
+### GitHub
+- **Repository:** https://github.com/amitdialpad/daart-onboarding-v3
+- **Live Demo:** https://amitdialpad.github.io/daart-onboarding-v3/
+- **Branch:** main
+- **Latest Commit:** Fix deployment state persistence
+
+---
