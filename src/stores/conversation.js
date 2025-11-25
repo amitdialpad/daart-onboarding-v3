@@ -140,12 +140,19 @@ export const useConversationStore = defineStore('conversation', {
         `Perfect! Let's build your ${agentGoal} agent.`
       )
 
+      // Announce Step 1
+      setTimeout(() => {
+        this.addAIMessage(
+          "Step 1 of 6: Agent Foundation & Skills"
+        )
+      }, 500)
+
       // Explain what we're doing
       setTimeout(() => {
         this.addAIMessage(
           "First, let's define what your agent can do. You can give it multiple skills - like scheduling appointments AND answering questions. This is what makes your agent powerful!"
         )
-      }, 600)
+      }, 1100)
 
       // Show skill selection with suggested skills + option to add custom
       setTimeout(() => {

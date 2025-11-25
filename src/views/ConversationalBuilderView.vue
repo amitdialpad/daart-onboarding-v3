@@ -320,17 +320,14 @@ const processAction = (action) => {
 
   setTimeout(() => {
     if (action === 'Guide me step by step') {
-      // User chose guided path - announce Step 1 first
-      conversationStore.addAIMessage("Step 1 of 6: Agent Foundation & Skills")
+      // User chose guided path - start configuring skills
+      // (Step 1 was already announced before skill selection)
+      conversationStore.addAIMessage("Great! Let's configure your skills.")
 
       setTimeout(() => {
-        conversationStore.addAIMessage("Great! Let's configure your skills.")
-
-        setTimeout(() => {
-          conversationStore.currentlyConfiguringSkill = 0
-          askSkillConfigQuestions()
-        }, 800)
-      }, 600)
+        conversationStore.currentlyConfiguringSkill = 0
+        askSkillConfigQuestions()
+      }, 800)
 
       conversationStore.setWaitingForAI(false)
       return
