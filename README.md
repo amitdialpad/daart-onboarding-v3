@@ -11,12 +11,15 @@ A Vue 3 prototype for conversational AI agent building using the Dialtone design
 V3 introduces a conversational-first approach to building AI agents, replacing the workspace-based model with an AI-guided chat interface that walks users through agent creation step-by-step.
 
 **Key Features:**
+- **Multi-Skill Agents** - Build one agent with multiple skills (appointment scheduling, billing, forms, etc.)
 - Personalized suggested goals based on mined CC transcripts
 - Conversational builder with milestone tracking
 - In-conversation actions (tool connections, validation, testing)
-- Two building modes: Step-by-step and "Do everything"
+- Two building modes: "Guide me step by step" and "Advanced builder"
 - Full agent lifecycle: Build → Test → Deploy → Monitor
 - Built with Dialtone design system
+
+**Key Differentiator:** "One agent with multiple skills" - users select and configure multiple capabilities in a single agent, not separate single-purpose bots.
 
 ## Design Constraints
 
@@ -107,9 +110,37 @@ src/
 
 ## Development Status
 
-**Current Phase:** Bug Fixes & Polish | Ready for EPD Team Review ✅
+**Current Phase:** Session 3 Complete | Multi-Skill Agent Flow ✅ | Awaiting EPD Feedback
 
-### Latest Updates (November 25, 2025):
+### Latest Updates (Session 3):
+
+**Session 3: Multi-Skill Agent Flow Implementation (Based on Michele's Feedback)**
+- [x] **Multi-Skill Selection BEFORE Path Choice**
+  - Restructured flow: Skills now shown FIRST, establishing "one agent, multiple skills" mental model
+  - Created SkillSelector component with multi-select checkboxes
+  - 7 skill options including "Something else (I'll describe it)" custom option
+
+- [x] **Improved UX Transitions**
+  - Added welcoming explanatory text before skill selector
+  - Staggered message timing for natural conversation flow (600ms, 1400ms, 800ms delays)
+  - Clear multi-select UI communicates "pick more than one"
+
+- [x] **Updated Path Choice Copy**
+  - Changed from "Guide me through 6 steps" to "Guide me step by step" (more accurate)
+  - Changed from "Skip to advanced builder" to "I'll configure it myself in the advanced builder"
+  - Path choice now happens AFTER skills selected, not before
+
+- [x] **Agent Studio Integration at Completion**
+  - Added Agent Studio option at Phase 6 completion
+  - Explanatory text about visual flow builder
+  - Three options: "Start testing", "Open Agent Studio", "View agent overview"
+
+- [x] **New Repository for Clean Deployment**
+  - Created fresh repo to avoid cache issues: https://github.com/amitdialpad/daart-onboarding-v3-latest
+  - Fixed vite.config.js base path for new repo
+  - Live at: https://amitdialpad.github.io/daart-onboarding-v3-latest/
+
+**Previous Session Updates:**
 
 **Session 2: Deployment State Persistence Fix**
 - [x] **Deployment Persistence Issue Fixed**
@@ -200,11 +231,31 @@ The theme CSS provides all the CSS custom property values (`--dt-color-*`, `--dt
 
 ## Documentation
 
+**Session Summaries:**
+- **SESSION_3_SUMMARY.md** - Multi-skill agent flow implementation (Session 3)
+- **SESSION_2_SUMMARY.md** - Homepage improvements with Stewart Butterfield principles (Session 2)
+- **DESIGN_PRINCIPLES.md** - Full documentation of Stewart Butterfield's 8 design principles
+- **HOMEPAGE_ANALYSIS.md** - Principle-by-principle homepage analysis
+
+**Development Docs:**
 - **PROGRESS.md** - Detailed session notes, technical decisions, and current state
-- **V3_PLAN.md** - Complete implementation plan (in V2 repo)
 - **README.md** - This file (quick start and overview)
+- **.claude/commands/daart.md** - Complete project context (load with `/daart` command)
+
+**Design Reference:**
+- **V3_PLAN.md** - Complete implementation plan (in V2 repo)
 - **Design PDF** - In V2 repo: `docs/For context.pdf`
 - **Design Reference Image** - In V2 repo: `docs/home.png`
+
+### For Future Sessions
+
+Use the `/daart` command in Claude Code to load complete context including:
+- All links and references (live demo, GitHub repo)
+- Complete architecture overview
+- Key code locations with line numbers
+- Design principles and learnings
+- Deployment information
+- Next steps and priorities
 
 ## Related Repos
 
