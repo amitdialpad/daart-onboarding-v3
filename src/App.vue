@@ -17,9 +17,16 @@ const route = useRoute()
 const agentStore = useAgentStore()
 
 const shouldShowLayout = computed(() => {
-  // Only hide layout on starting point page
-  // Show layout everywhere else, including during onboarding (Intercom principle: consistent layout)
-  return !route.meta.hideLayout
+  // Hide layout on starting point page
+  if (route.meta.hideLayout) return false
+
+  // Hide layout during onboarding (any route when not completed)
+  if (!agentStore.hasCompletedOnboarding) {
+    return false
+  }
+
+  // Show layout everywhere else
+  return true
 })
 </script>
 

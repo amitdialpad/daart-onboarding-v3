@@ -3,7 +3,6 @@
     <!-- Header -->
     <div class="test-header">
       <div class="header-content">
-        <button @click="goBack" class="back-button">← Back to Builder</button>
         <h1 class="test-title">Test Your Agent</h1>
         <button @click="resetConversation" class="reset-button">Reset</button>
       </div>
@@ -197,9 +196,7 @@ onMounted(() => {
 
 <style scoped>
 .test-mode-view {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
   background: var(--dt-color-surface-secondary);
 }
 
@@ -218,7 +215,6 @@ onMounted(() => {
   margin: 0 auto;
 }
 
-.back-button,
 .reset-button {
   padding: var(--dt-space-300) var(--dt-space-450);
   background: transparent;
@@ -231,7 +227,6 @@ onMounted(() => {
   transition: all 0.2s ease;
 }
 
-.back-button:hover,
 .reset-button:hover {
   background: var(--dt-color-surface-secondary);
   border-color: var(--dt-color-border-strong);
@@ -246,13 +241,12 @@ onMounted(() => {
 
 /* Container */
 .test-container {
-  flex: 1;
   display: flex;
   max-width: 1400px;
   width: 100%;
   margin: 0 auto;
-  overflow: hidden;
-  gap: 0;
+  padding: var(--dt-space-600);
+  gap: var(--dt-space-500);
 }
 
 /* Agent Chat (Left) */
@@ -261,7 +255,9 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   background: var(--dt-color-surface-primary);
-  border-right: 1px solid var(--dt-color-border-subtle);
+  border: 1px solid var(--dt-color-border-subtle);
+  border-radius: var(--dt-size-radius-400);
+  overflow: hidden;
 }
 
 .chat-messages {
@@ -361,6 +357,8 @@ onMounted(() => {
 .info-panel {
   width: 350px;
   background: var(--dt-color-surface-primary);
+  border: 1px solid var(--dt-color-border-subtle);
+  border-radius: var(--dt-size-radius-400);
   padding: var(--dt-space-550);
   overflow-y: auto;
   display: flex;

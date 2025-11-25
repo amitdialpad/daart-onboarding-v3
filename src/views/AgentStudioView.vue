@@ -3,14 +3,7 @@
     <!-- Header -->
     <div class="builder-header">
       <div class="header-content">
-        <div class="header-left">
-          <button @click="goBack" class="back-button">← Back to Builder</button>
-          <div class="breadcrumb">
-            <span class="breadcrumb-item">{{ agentName }}</span>
-            <span class="breadcrumb-separator">/</span>
-            <span class="breadcrumb-item current">Agent Studio</span>
-          </div>
-        </div>
+        <h1 class="builder-title">Agent Studio</h1>
         <div class="header-right">
           <button @click="handleTest" class="action-button">Test</button>
           <button @click="handleSave" class="action-button primary">Save</button>
@@ -90,9 +83,9 @@ const handleTest = () => {
 }
 
 const handleSave = () => {
-  // For now, just show a message and go back
+  // For now, just show a message and stay on the page
   alert('Workflow saved! (This is a placeholder - full editing coming soon)')
-  router.push('/builder')
+  // Stay on the current page - no navigation
 }
 </script>
 
@@ -100,80 +93,37 @@ const handleSave = () => {
 .workflow-builder {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
   background: var(--dt-color-surface-secondary);
-  overflow: hidden;
 }
 
 /* Header */
 .builder-header {
   background: var(--dt-color-surface-primary);
   border-bottom: 1px solid var(--dt-color-border-subtle);
-  flex-shrink: 0;
+  padding: var(--dt-space-500) var(--dt-space-550);
 }
 
 .header-content {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--dt-space-400) var(--dt-space-550);
+  max-width: 1400px;
+  margin: 0 auto;
   gap: var(--dt-space-500);
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: var(--dt-space-450);
-  flex: 1;
-  min-width: 0;
+.builder-title {
+  margin: 0;
+  font-size: var(--dt-font-size-400);
+  font-weight: var(--dt-font-weight-medium);
+  color: var(--dt-color-foreground-primary);
 }
 
 .header-right {
   display: flex;
   gap: var(--dt-space-300);
   flex-shrink: 0;
-}
-
-.back-button {
-  padding: var(--dt-space-300) var(--dt-space-400);
-  background: transparent;
-  border: 1px solid var(--dt-color-border-moderate);
-  border-radius: var(--dt-size-radius-300);
-  font-size: var(--dt-font-size-200);
-  font-weight: var(--dt-font-weight-medium);
-  color: var(--dt-color-foreground-primary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-
-.back-button:hover {
-  background: var(--dt-color-surface-secondary);
-  border-color: var(--dt-color-border-strong);
-}
-
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: var(--dt-space-300);
-  font-size: var(--dt-font-size-200);
-  color: var(--dt-color-foreground-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-.breadcrumb-item {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.breadcrumb-item.current {
-  color: var(--dt-color-foreground-primary);
-  font-weight: var(--dt-font-weight-medium);
-}
-
-.breadcrumb-separator {
-  color: var(--dt-color-foreground-tertiary);
 }
 
 .action-button {
@@ -207,28 +157,29 @@ const handleSave = () => {
 
 /* Main Container */
 .builder-container {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--dt-space-600);
+  width: 100%;
 }
 
 /* Canvas Area */
 .canvas-container {
-  flex: 1;
   position: relative;
-  overflow: hidden;
   background: var(--dt-color-surface-secondary);
+  border-radius: var(--dt-size-radius-400);
+  min-height: 600px;
 }
 
 .canvas-grid {
   width: 100%;
-  height: 100%;
+  min-height: 600px;
   background-image:
     linear-gradient(var(--dt-color-border-subtle) 1px, transparent 1px),
     linear-gradient(90deg, var(--dt-color-border-subtle) 1px, transparent 1px);
   background-size: 20px 20px;
   position: relative;
-  overflow: auto;
+  border-radius: var(--dt-size-radius-400);
 }
 
 .coming-soon-overlay {

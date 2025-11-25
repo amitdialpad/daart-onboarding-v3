@@ -13,7 +13,7 @@
         <router-link
           :to="overviewPath"
           class="nav-item"
-          :class="{ active: isActive('/agent'), disabled: !canAccessOverview }"
+          :class="{ active: isActiveOverview, disabled: !canAccessOverview }"
           @click.prevent="!canAccessOverview && $event.preventDefault()"
         >
           <span class="nav-label">Overview</span>
@@ -21,8 +21,8 @@
 
         <div class="nav-divider"></div>
 
-        <router-link to="/builder" class="nav-item" :class="{ active: isActive('/builder') }">
-          <span class="nav-label">Build</span>
+        <router-link :to="buildPath" class="nav-item" :class="{ active: isActiveBuild }">
+          <span class="nav-label">Agent Studio</span>
           <span v-if="!agentStore.hasCompletedOnboarding && isActive('/builder')" class="nav-badge">In Progress</span>
         </router-link>
 
@@ -55,15 +55,6 @@
         </router-link>
 
         <div class="nav-divider"></div>
-
-        <router-link
-          to="/agent-studio"
-          class="nav-item"
-          :class="{ active: isActive('/agent-studio'), disabled: !canAccessAdvanced }"
-          @click.prevent="!canAccessAdvanced && $event.preventDefault()"
-        >
-          <span class="nav-label">Agent Studio</span>
-        </router-link>
 
         <router-link
           to="/knowledge"
@@ -103,9 +94,26 @@ const overviewPath = computed(() => {
   return `/agent/${agentId}/overview`
 })
 
+const buildPath = computed(() => {
+  // After onboarding, "Build" goes to Agent Studio
+  // During onboarding, "Build" goes to conversational builder
+  return agentStore.hasCompletedOnboarding ? '/agent-studio' : '/builder'
+})
+
 const isActive = (path) => {
   return route.path.startsWith(path)
 }
+
+// Specific active state checks to prevent overlap
+const isActiveOverview = computed(() => {
+  // Only active for /agent/:id/overview paths, not /agent-studio
+  return route.path.includes('/agent/') && route.path.includes('/overview')
+})
+
+const isActiveBuild = computed(() => {
+  // Active for /builder or /agent-studio
+  return route.path.startsWith('/builder') || route.path.startsWith('/agent-studio')
+})
 
 // Access control based on agent status
 // Status flow: 'draft' → 'in_progress' → 'ready' → 'deployed'

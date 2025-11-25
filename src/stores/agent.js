@@ -11,9 +11,10 @@ export const useAgentStore = defineStore('agent', {
     // Onboarding state
     hasCompletedOnboarding: false,
 
-    // Phase 1: Agent Foundation & Tasks
+    // Phase 1: Agent Foundation & Skills (Multi-skill support)
+    skills: [], // Array of skill objects: [{ type: 'appointment_scheduler', config: {...} }, { type: 'form_collector', config: {...} }]
     foundation: {
-      purpose: '',
+      purpose: '', // Legacy field - now derived from skills
       businessHours: '',
       appointmentDuration: '',
       bufferTime: '',
@@ -124,6 +125,58 @@ export const useAgentStore = defineStore('agent', {
     updateFoundation(data) {
       this.foundation = { ...this.foundation, ...data }
       this.lastModified = new Date()
+    },
+
+    // Add skill to agent (multi-skill support)
+    addSkill(skillType, config = {}) {
+      const skill = {
+        id: Date.now().toString() + Math.random(),
+        type: skillType, // 'appointment_scheduler', 'form_collector', 'billing_helper', etc.
+        config: config, // Skill-specific configuration
+        addedAt: new Date()
+      }
+      this.skills.push(skill)
+      this.lastModified = new Date()
+
+      // Update purpose to reflect multiple skills
+      this.updatePurposeFromSkills()
+    },
+
+    // Update skill configuration
+    updateSkillConfig(skillId, config) {
+      const skill = this.skills.find(s => s.id === skillId)
+      if (skill) {
+        skill.config = { ...skill.config, ...config }
+        this.lastModified = new Date()
+      }
+    },
+
+    // Remove skill
+    removeSkill(skillId) {
+      this.skills = this.skills.filter(s => s.id !== skillId)
+      this.lastModified = new Date()
+      this.updatePurposeFromSkills()
+    },
+
+    // Generate purpose description from skills
+    updatePurposeFromSkills() {
+      if (this.skills.length === 0) {
+        this.foundation.purpose = ''
+        return
+      }
+
+      const skillNames = this.skills.map(skill => {
+        const typeMap = {
+          'appointment_scheduler': 'Appointment scheduling',
+          'form_collector': 'Form collection',
+          'billing_helper': 'Billing & claims assistance',
+          'customer_support': 'Customer support',
+          'refund_processor': 'Refund processing'
+        }
+        return typeMap[skill.type] || skill.type
+      })
+
+      this.foundation.purpose = skillNames.join(', ')
     },
 
     // Add connection

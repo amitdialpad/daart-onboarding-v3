@@ -39,8 +39,28 @@
         :items="message.progressItems || []"
       />
 
+      <!-- Progress Tracker (persistent overview) -->
+      <LoadingProgress
+        v-else-if="message.type === 'progress-tracker'"
+        :title="message.title"
+        :items="message.progressItems || []"
+      />
+
+      <!-- Skill Selector (multi-select) -->
+      <SkillSelector
+        v-else-if="message.type === 'skill-selector'"
+        :skills="message.skills || []"
+        @continue="(selectedSkills) => $emit('skills-selected', selectedSkills)"
+      />
+
+      <!-- Simple Loading (special type) -->
+      <div v-else-if="message.type === 'simple-loading'" class="simple-loading">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">{{ message.content }}</span>
+      </div>
+
       <!-- Regular text content -->
-      <div v-else class="message-text">
+      <div v-else :class="['message-text', { 'step-announcement': isStepAnnouncement }]">
         {{ message.content }}
       </div>
     </div>
@@ -69,20 +89,27 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import ValidationCard from './ValidationCard.vue'
 import VisualStudioPreview from './VisualStudioPreview.vue'
 import WholePlanView from './WholePlanView.vue'
 import DocumentInput from './DocumentInput.vue'
 import LoadingProgress from './LoadingProgress.vue'
+import SkillSelector from './SkillSelector.vue'
 
-defineProps({
+const props = defineProps({
   message: {
     type: Object,
     required: true,
   },
 })
 
-defineEmits(['action-clicked', 'document-submitted'])
+defineEmits(['action-clicked', 'document-submitted', 'skills-selected'])
+
+// Check if message is a step announcement
+const isStepAnnouncement = computed(() => {
+  return props.message.content && /^Step \d+ of 6:/.test(props.message.content)
+})
 
 const formatTime = (timestamp) => {
   if (!timestamp) return ''
@@ -98,8 +125,9 @@ const formatTime = (timestamp) => {
 .chat-message {
   display: flex;
   flex-direction: column;
-  max-width: 80%;
+  max-width: 100%;
   animation: fadeIn 0.3s ease-in;
+  margin-bottom: var(--dt-space-400);
 }
 
 @keyframes fadeIn {
@@ -115,31 +143,35 @@ const formatTime = (timestamp) => {
 
 /* AI messages (left-aligned) */
 .chat-message.ai {
+  align-self: flex-start;
+  max-width: 85%;
 }
 
-/* User messages (right-aligned) */
+/* User messages (left-aligned) */
 .chat-message.user {
-  align-self: flex-end;
+  align-self: flex-start;
+  max-width: 85%;
 }
 
 .message-bubble {
-  padding: var(--dt-space-450);
+  padding: var(--dt-space-450) var(--dt-space-500);
   border-radius: var(--dt-size-radius-400);
   display: flex;
   flex-direction: column;
-  gap: var(--dt-space-400);
+  gap: var(--dt-space-350);
 }
 
-/* AI message styling */
+/* AI message styling - clean white card */
 .chat-message.ai .message-bubble {
-  background: var(--dt-color-surface-secondary);
+  background: var(--dt-color-surface-primary);
   border: 1px solid var(--dt-color-border-subtle);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-/* User message styling */
+/* User message styling - with color */
 .chat-message.user .message-bubble {
-  background: var(--dt-color-purple-200);
-  color: var(--dt-color-foreground-primary);
+  background: var(--dt-color-purple-100);
+  border: 1px solid var(--dt-color-purple-200);
 }
 
 .message-text {
@@ -148,26 +180,48 @@ const formatTime = (timestamp) => {
   color: var(--dt-color-foreground-primary);
   white-space: pre-wrap;
   word-wrap: break-word;
+  font-weight: var(--dt-font-weight-normal);
+}
+
+/* Step announcement styling - make it bold */
+.message-text.step-announcement {
+  font-weight: var(--dt-font-weight-bold);
+  font-size: var(--dt-font-size-300);
 }
 
 .message-actions {
   display: flex;
   flex-direction: column;
-  gap: var(--dt-space-300);
-  margin-top: var(--dt-space-300);
+  gap: var(--dt-space-400);
+  margin-top: var(--dt-space-400);
+  margin-left: var(--dt-space-550);
+  position: relative;
 }
 
 .action-button {
   padding: var(--dt-space-400) var(--dt-space-450);
+  padding-right: var(--dt-space-600); /* Reserve space for arrow to prevent width jump */
   background: var(--dt-color-surface-primary);
-  border: 1px solid var(--dt-color-border-moderate);
+  border: 1.5px solid var(--dt-color-border-moderate);
   border-radius: var(--dt-size-radius-300);
   font-size: var(--dt-font-size-200);
   font-weight: var(--dt-font-weight-medium);
   color: var(--dt-color-foreground-primary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
   text-align: left;
+  position: relative;
+}
+
+/* Arrow on hover */
+.action-button::after {
+  content: '→';
+  position: absolute;
+  right: var(--dt-space-450);
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
 .action-button:hover {
@@ -175,14 +229,18 @@ const formatTime = (timestamp) => {
   border-color: var(--dt-color-border-strong);
 }
 
+.action-button:hover::after {
+  opacity: 1;
+}
+
 .action-button:active {
   transform: scale(0.98);
 }
 
 .message-timestamp {
-  font-size: var(--dt-font-size-200);
+  font-size: var(--dt-font-size-100);
   color: var(--dt-color-foreground-tertiary);
-  margin-top: var(--dt-space-200);
+  margin-top: var(--dt-space-300);
   opacity: 0;
   transition: opacity 0.2s ease;
 }
@@ -197,6 +255,36 @@ const formatTime = (timestamp) => {
 }
 
 .chat-message.user .message-timestamp {
-  text-align: right;
+  text-align: left;
+}
+
+/* Simple Loading State */
+.simple-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--dt-space-400);
+  padding: var(--dt-space-500);
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--dt-color-border-subtle);
+  border-top-color: var(--dt-color-foreground-secondary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-text {
+  font-size: var(--dt-font-size-300);
+  color: var(--dt-color-foreground-secondary);
+  font-weight: var(--dt-font-weight-normal);
 }
 </style>

@@ -3,14 +3,7 @@
     <!-- Header -->
     <div class="overview-header">
       <div class="header-content">
-        <button @click="goBack" class="back-button">← Back</button>
         <h1 class="overview-title">{{ agentName }}</h1>
-        <div class="header-actions">
-          <button @click="goToMonitor" class="action-button">Monitor</button>
-          <button @click="goToDeploy" class="action-button">Deploy</button>
-          <button @click="goToTest" class="action-button">Test Agent</button>
-          <button @click="editAgent" class="action-button primary">Edit Agent</button>
-        </div>
       </div>
     </div>
 
@@ -20,7 +13,7 @@
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-label">Status</div>
-          <div class="stat-value">Active</div>
+          <div class="stat-value" :class="statusClass">{{ statusText }}</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Connections</div>
@@ -127,6 +120,19 @@ const safetyRulesCount = computed(() => {
 // Check if agent is deployed
 const isDeployed = computed(() => agentStore.status === 'deployed')
 
+// Status text and styling
+const statusText = computed(() => {
+  if (agentStore.status === 'deployed') return 'Deployed'
+  if (agentStore.hasCompletedOnboarding) return 'Ready'
+  return 'Draft'
+})
+
+const statusClass = computed(() => {
+  if (agentStore.status === 'deployed') return 'status-deployed'
+  if (agentStore.hasCompletedOnboarding) return 'status-ready'
+  return 'status-draft'
+})
+
 const goBack = () => {
   // If deployed, go to home. If not deployed (still building), go back to builder
   if (isDeployed.value) {
@@ -171,7 +177,7 @@ const editAgent = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   gap: var(--dt-space-500);
 }
@@ -236,7 +242,7 @@ const editAgent = () => {
 
 /* Content */
 .overview-content {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: var(--dt-space-600);
 }
@@ -266,6 +272,18 @@ const editAgent = () => {
   font-size: var(--dt-font-size-500);
   font-weight: var(--dt-font-weight-medium);
   color: var(--dt-color-foreground-primary);
+}
+
+.stat-value.status-deployed {
+  color: var(--dt-color-green-600);
+}
+
+.stat-value.status-ready {
+  color: var(--dt-color-purple-500);
+}
+
+.stat-value.status-draft {
+  color: var(--dt-color-foreground-secondary);
 }
 
 /* Details Section */

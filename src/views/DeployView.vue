@@ -1,23 +1,17 @@
 <template>
-  <div class="intercom-page">
+  <div class="deploy-view">
     <!-- Header -->
-    <div class="intercom-page-header">
-      <button @click="goBack" class="intercom-button intercom-button-ghost" style="margin-bottom: var(--dt-space-400)">
-        ← Back
-      </button>
-      <div style="display: flex; align-items: center; justify-content: space-between;">
-        <div>
-          <h1 class="intercom-page-title">Deploy Your Agent</h1>
-          <p class="intercom-page-description">Choose a channel and configure your deployment settings</p>
-        </div>
-        <span class="intercom-badge" :class="deploymentStatus === 'live' ? 'intercom-badge-success' : 'intercom-badge-neutral'">
+    <div class="deploy-header">
+      <div class="header-content">
+        <h1 class="deploy-title">Deploy Your Agent</h1>
+        <span class="status-badge" :class="deploymentStatus === 'live' ? 'badge-success' : 'badge-neutral'">
           {{ statusText }}
         </span>
       </div>
     </div>
 
     <!-- Main Content -->
-    <div>
+    <div class="deploy-content">
       <!-- Not Deployed State -->
       <div v-if="deploymentStatus === 'draft'">
         <!-- Step 1: Channel Selection -->
@@ -337,6 +331,60 @@ const handleUnpublish = () => {
 </script>
 
 <style scoped>
+.deploy-view {
+  min-height: 100vh;
+  background: var(--dt-color-surface-secondary);
+}
+
+/* Header */
+.deploy-header {
+  background: var(--dt-color-surface-primary);
+  border-bottom: 1px solid var(--dt-color-border-subtle);
+  padding: var(--dt-space-500) var(--dt-space-550);
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1400px;
+  margin: 0 auto;
+  gap: var(--dt-space-500);
+}
+
+.deploy-title {
+  margin: 0;
+  font-size: var(--dt-font-size-400);
+  font-weight: var(--dt-font-weight-medium);
+  color: var(--dt-color-foreground-primary);
+}
+
+.status-badge {
+  padding: var(--dt-space-200) var(--dt-space-350);
+  border-radius: var(--dt-size-radius-200);
+  font-size: 11px;
+  font-weight: var(--dt-font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.badge-success {
+  background: var(--dt-color-green-100);
+  color: var(--dt-color-green-600);
+}
+
+.status-badge.badge-neutral {
+  background: var(--dt-color-surface-secondary);
+  color: var(--dt-color-foreground-secondary);
+}
+
+/* Content */
+.deploy-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--dt-space-600);
+}
+
 /* Minimal additional styles - most styling comes from intercom-styles.css */
 .opacity-50 {
   opacity: 0.5;

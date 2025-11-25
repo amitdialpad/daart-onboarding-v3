@@ -6,36 +6,29 @@
         v-model="message"
         @keydown.enter.exact.prevent="handleSend"
         @keydown.enter.shift.exact="handleNewLine"
-        placeholder="Type your message..."
+        placeholder="Reply or answer question..."
         :disabled="disabled"
         ref="textarea"
         rows="1"
         class="message-textarea"
       />
 
-      <!-- Action buttons -->
-      <div class="input-actions">
-        <button
-          @click="handleImprove"
-          :disabled="disabled || !message.trim()"
-          class="improve-button"
-        >
-          Improve
-        </button>
-        <button
-          @click="handleSend"
-          :disabled="disabled || !message.trim()"
-          class="send-button"
-        >
-          Send
-        </button>
-      </div>
+      <!-- Send button -->
+      <button
+        @click="handleSend"
+        :disabled="disabled || !message.trim()"
+        class="send-button"
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M18 10L2 2L5 10L2 18L18 10Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, onMounted } from 'vue'
 
 const props = defineProps({
   disabled: {
@@ -48,6 +41,15 @@ const emit = defineEmits(['send-message', 'improve'])
 
 const message = ref('')
 const textarea = ref(null)
+
+// Auto-focus textarea when component mounts
+onMounted(() => {
+  nextTick(() => {
+    if (textarea.value && !props.disabled) {
+      textarea.value.focus()
+    }
+  })
+})
 
 // Auto-resize textarea
 const autoResize = () => {
@@ -102,42 +104,43 @@ const handleNewLine = () => {
 
 <style scoped>
 .message-input-container {
-  padding: var(--dt-space-450);
-  border-top: 1px solid var(--dt-color-border-subtle);
+  padding: var(--dt-space-400) var(--dt-space-550);
   background: var(--dt-color-surface-primary);
+  border-top: 1px solid var(--dt-color-border-subtle);
 }
 
 .input-wrapper {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: var(--dt-space-400);
-  max-width: 100%;
+  max-width: 750px;
+  background: var(--dt-color-surface-primary);
+  border: 1px solid var(--dt-color-border-moderate);
+  border-radius: var(--dt-size-radius-400);
+  padding: var(--dt-space-350) var(--dt-space-400);
 }
 
 .message-textarea {
-  width: 100%;
-  min-height: 44px;
-  max-height: 200px;
-  padding: var(--dt-space-400);
-  border: 1px solid var(--dt-color-border-moderate);
-  border-radius: var(--dt-size-radius-400);
-  font-family: var(--dt-font-family-body);
+  flex: 1;
+  min-height: 20px;
+  max-height: 120px;
+  padding: 0;
+  border: none;
+  font-family: var(--dt-font-family-sans);
   font-size: var(--dt-font-size-200);
   line-height: 1.5;
   color: var(--dt-color-foreground-primary);
-  background: var(--dt-color-surface-primary);
+  background: transparent;
   resize: none;
   overflow-y: auto;
-  transition: border-color 0.2s ease;
+  outline: none;
 }
 
 .message-textarea:focus {
   outline: none;
-  border-color: var(--dt-color-purple-400);
 }
 
 .message-textarea:disabled {
-  background: var(--dt-color-surface-secondary);
   color: var(--dt-color-foreground-disabled);
   cursor: not-allowed;
 }
@@ -146,51 +149,37 @@ const handleNewLine = () => {
   color: var(--dt-color-foreground-tertiary);
 }
 
-.input-actions {
+.send-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
   display: flex;
-  gap: var(--dt-space-400);
-  justify-content: flex-end;
-}
-
-.improve-button,
-.send-button {
-  padding: var(--dt-space-400) var(--dt-space-500);
-  border-radius: var(--dt-size-radius-400);
-  font-size: var(--dt-font-size-200);
-  font-weight: var(--dt-font-weight-medium);
-  cursor: pointer;
-  transition: all 0.2s ease;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--dt-size-radius-300);
   border: none;
-}
-
-.improve-button {
-  background: var(--dt-color-surface-secondary);
+  background: transparent;
   color: var(--dt-color-foreground-primary);
-  border: 1px solid var(--dt-color-border-moderate);
-}
-
-.improve-button:hover:not(:disabled) {
-  background: var(--dt-color-surface-tertiary);
-  border-color: var(--dt-color-border-strong);
-}
-
-.send-button {
-  background: var(--dt-color-purple-400);
-  color: var(--dt-color-foreground-primary-inverted);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
 }
 
 .send-button:hover:not(:disabled) {
-  background: var(--dt-color-purple-500);
+  background: var(--dt-color-surface-secondary);
 }
 
-.improve-button:active:not(:disabled),
 .send-button:active:not(:disabled) {
-  transform: scale(0.98);
+  background: var(--dt-color-surface-moderate);
 }
 
-.improve-button:disabled,
 .send-button:disabled {
-  opacity: 0.5;
+  color: var(--dt-color-foreground-disabled);
   cursor: not-allowed;
+}
+
+.send-button svg {
+  width: 18px;
+  height: 18px;
 }
 </style>
