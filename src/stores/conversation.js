@@ -38,6 +38,9 @@ export const useConversationStore = defineStore('conversation', {
     // Message history
     messages: [],
 
+    // Validation improvements (stored for progressive disclosure)
+    validationImprovements: [],
+
     // Current phase tracking
     currentPhase: {
       number: 1,
@@ -95,7 +98,7 @@ export const useConversationStore = defineStore('conversation', {
     },
 
     // Add AI message
-    addAIMessage(content, type = 'text', actions = null, improvements = null, progressItems = null, title = null, skills = null) {
+    addAIMessage(content, type = 'text', actions = null, improvements = null, progressItems = null, title = null, skills = null, agentGoal = null, preSelectedSkills = null, additionalSkills = null, suggestions = null) {
       this.addMessage({
         sender: 'ai',
         content,
@@ -105,6 +108,10 @@ export const useConversationStore = defineStore('conversation', {
         progressItems, // For loading progress
         title, // For loading progress title
         skills, // For skill selector
+        agentGoal, // For template skill confirmation
+        preSelectedSkills, // For template skill confirmation
+        additionalSkills, // For template skill confirmation
+        suggestions, // For suggestion chips
       })
     },
 
@@ -126,7 +133,7 @@ export const useConversationStore = defineStore('conversation', {
     },
 
     // Initialize conversation with the initial plan
-    initializeConversation(agentGoal) {
+    initializeConversation(agentGoal, preSelectedSkills = null) {
       this.messages = []
       this.milestones.goal = agentGoal
 
@@ -135,47 +142,87 @@ export const useConversationStore = defineStore('conversation', {
       const agentStore = useAgentStore()
       agentStore.initializeAgent(agentGoal)
 
-      // Add welcoming introduction
-      this.addAIMessage(
-        `Perfect! Let's build your ${agentGoal} agent.`
-      )
+      // Set waiting state
+      this.setWaitingForAI(true)
+
+      // Add welcoming introduction with delay
+      setTimeout(() => {
+        this.addAIMessage(
+          `Perfect! Let's build your ${agentGoal} agent.`
+        )
+      }, 500)
 
       // Announce Step 1
       setTimeout(() => {
         this.addAIMessage(
-          "Step 1 of 6: Agent Foundation & Skills"
+          "Step 1 of 5: Agent Foundation & Skills"
         )
-      }, 500)
+      }, 1200)
 
-      // Explain what we're doing
-      setTimeout(() => {
-        this.addAIMessage(
-          "First, let's define what your agent can do. You can give it multiple skills - like scheduling appointments AND answering questions. This is what makes your agent powerful!"
-        )
-      }, 1100)
+      // If template has pre-selected skills, show confirmation instead of selection
+      if (preSelectedSkills && preSelectedSkills.length > 0) {
+        // Add skills to agent store automatically
+        preSelectedSkills.forEach(skillId => {
+          agentStore.addSkill(skillId)
+        })
 
-      // Show skill selection with suggested skills + option to add custom
-      setTimeout(() => {
-        this.addAIMessage(
-          "What skills should your agent have? Select all that apply:",
-          'skill-selector',
-          null, // actions
-          null, // improvements
-          null, // progressItems
-          null, // title
-          [ // Common skills - user can also add custom ones
-            { id: 'appointment_scheduler', label: 'Schedule appointments' },
-            { id: 'form_collector', label: 'Collect forms' },
-            { id: 'billing_helper', label: 'Answer billing questions' },
-            { id: 'question_answering', label: 'Answer common questions' },
-            { id: 'prescription_refills', label: 'Handle prescription refills' },
-            { id: 'reminders', label: 'Send reminders' },
-            { id: 'custom', label: "Something else (I'll describe it)" }
-          ]
-        )
-      }, 1400)
+        // Show template skill confirmation with capabilities
+        setTimeout(() => {
+          this.addAIMessage(
+            '', // Empty content for this special type
+            'template-skill-confirmation',
+            null, // actions
+            null, // improvements
+            null, // progressItems
+            null, // title
+            null, // skills (not used for this type)
+            agentGoal, // Pass agent goal
+            preSelectedSkills, // Pass pre-selected skills for capabilities display
+            [ // Additional skills that can be added
+              { id: 'form_collector', label: 'Collect forms' },
+              { id: 'billing_helper', label: 'Answer billing questions' },
+              { id: 'question_answering', label: 'Answer common questions' },
+              { id: 'prescription_refills', label: 'Handle prescription refills' },
+              { id: 'reminders', label: 'Send reminders' },
+              { id: 'custom', label: 'Something else (I\'ll describe it)' }
+            ]
+          )
+          this.setWaitingForAI(false)
+        }, 1900)
 
-      this.currentState = ConversationState.PRO_SKILL_SELECTION
+        this.currentState = 'template_confirmation'
+      } else {
+        // Show normal skill selection for free-form agents
+        setTimeout(() => {
+          this.addAIMessage(
+            "First, let's define what your agent can do. You can give it multiple skills - like scheduling appointments AND answering questions. This is what makes your agent powerful!"
+          )
+        }, 1900)
+
+        // Show skill selection with suggested skills + option to add custom
+        setTimeout(() => {
+          this.addAIMessage(
+            "What skills should your agent have? Select all that apply:",
+            'skill-selector',
+            null, // actions
+            null, // improvements
+            null, // progressItems
+            null, // title
+            [ // Common skills - user can also add custom ones
+              { id: 'appointment_scheduler', label: 'Schedule appointments' },
+              { id: 'form_collector', label: 'Collect forms' },
+              { id: 'billing_helper', label: 'Answer billing questions' },
+              { id: 'question_answering', label: 'Answer common questions' },
+              { id: 'prescription_refills', label: 'Handle prescription refills' },
+              { id: 'reminders', label: 'Send reminders' },
+              { id: 'custom', label: "Something else (I'll describe it)" }
+            ]
+          )
+          this.setWaitingForAI(false)
+        }, 2800)
+
+        this.currentState = ConversationState.PRO_SKILL_SELECTION
+      }
     },
 
     // Select user path (beginner or pro)
@@ -204,7 +251,7 @@ export const useConversationStore = defineStore('conversation', {
         // Start with Step 1 immediately
         setTimeout(() => {
           this.addAIMessage(
-            "Step 1 of 6: Agent Foundation & Skills"
+            "Step 1 of 5: Agent Foundation & Skills"
           )
         }, 300)
 
@@ -287,6 +334,7 @@ export const useConversationStore = defineStore('conversation', {
       this.messages = []
       this.currentState = ConversationState.SHOWING_PLAN
       this.userPath = null
+      this.validationImprovements = []
       this.currentPhase = {
         number: 1,
         name: 'Agent Foundation & Skills',

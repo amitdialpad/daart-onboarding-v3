@@ -64,12 +64,6 @@
       >
         Review Each Individually
       </button>
-      <button
-        @click="$emit('skip')"
-        class="action-button tertiary"
-      >
-        Skip for Now
-      </button>
     </div>
   </div>
 </template>
@@ -85,7 +79,7 @@ const props = defineProps({
   }
 })
 
-defineEmits(['apply-all', 'review-each', 'skip'])
+defineEmits(['apply-all', 'review-each'])
 
 // Track which cards are expanded
 const expandedCards = ref({})

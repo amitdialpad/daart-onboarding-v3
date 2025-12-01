@@ -110,9 +110,69 @@ src/
 
 ## Development Status
 
-**Current Phase:** Session 3 Complete | Multi-Skill Agent Flow ✅ | Awaiting EPD Feedback
+**Current Phase:** Session 6 Complete | UX Improvements & Bug Fixes ✅
 
-### Latest Updates (Session 3):
+### Latest Updates (Session 6):
+
+**Session 6: UX Improvements & Input Visibility Fixes (December 2, 2025)**
+- [x] **Fixed Text Input Visibility**
+  - Input now properly hides during informational/transition messages
+  - Smarter logic: Shows only when actually expecting user input
+  - Checks for question indicators ("?", "what", "describe", "tell me")
+  - Prevents confusion from text box appearing when action buttons present
+
+- [x] **Consolidated Redundant Navigation**
+  - Removed duplicate "Start testing" and "Open Agent Studio" buttons
+  - Changed to single clear CTA: "Open Agent Studio"
+  - Simplified action handlers
+  - Cleaner user experience at completion
+
+- [x] **Removed Duplicate Suggestion Chips**
+  - Fixed identity verification question showing both buttons AND chips
+  - Cleaned up redundant UI elements
+  - More professional appearance
+
+**Previous Session (Session 5):**
+- [x] **Aligned StartingPoint with EAP Design**
+  - Removed free trial notice
+  - Updated copy to match EAP design screenshot
+  - Added dotted background pattern (radial gradient)
+  - Set template grid max-width to 700px (centered layout)
+  - Added "Create manually" link below templates
+
+- [x] **Business-Focused Templates (Industry-Agnostic)**
+  - Replaced 6 healthcare templates with 6 business templates
+  - New templates: AI Receptionist, Scheduling Assistant, Recruiting Agent, Account Manager, CRM Buddy, Sales Support Agent
+  - "Scheduling Assistant" marked as "Popular"
+  - Templates now industry-agnostic, broader appeal
+
+- [x] **Template Pre-Configuration (Smart Defaults)**
+  - Each template includes `preSelectedSkills` array
+  - Example: Scheduling Assistant → ['appointment_scheduler', 'reminders']
+  - Skills automatically added when template selected
+  - Shows confirmation: "Your agent can X, Y, Z. Want to add more?"
+  - Reduces decision fatigue, faster time to value
+
+- [x] **Template Interaction Improvements**
+  - Template click now fills textarea (preview/edit)
+  - User can modify description before clicking "Start Building"
+  - Allows "poking around" before committing
+  - Clear separation between template and free-form flows
+
+- [x] **Short Agent Names**
+  - Template selection: Uses template title (2-3 words)
+  - Free-form input: Extracts first 2-3 words
+  - Cleaner display in builder
+
+- [x] **UX Polish**
+  - Restored rotating placeholder examples (6 business scenarios)
+  - Clean, minimal design matching EAP mockups
+  - Professional, concise copy
+  - Maintained Dialtone design tokens throughout
+
+**See SESSION_5_SUMMARY.md for complete implementation details.**
+
+### Previous Updates (Session 3):
 
 **Session 3: Multi-Skill Agent Flow Implementation (Based on Michele's Feedback)**
 - [x] **Multi-Skill Selection BEFORE Path Choice**
@@ -232,6 +292,8 @@ The theme CSS provides all the CSS custom property values (`--dt-color-*`, `--dt
 ## Documentation
 
 **Session Summaries:**
+- **SESSION_5_SUMMARY.md** - EAP design alignment & template pre-configuration (Session 5)
+- **SESSION_4_SUMMARY.md** - Bug fixes and UX improvements (Session 4)
 - **SESSION_3_SUMMARY.md** - Multi-skill agent flow implementation (Session 3)
 - **SESSION_2_SUMMARY.md** - Homepage improvements with Stewart Butterfield principles (Session 2)
 - **DESIGN_PRINCIPLES.md** - Full documentation of Stewart Butterfield's 8 design principles
@@ -300,8 +362,8 @@ This is a low-fidelity prototype for UX validation. Focus is on user flow rather
 
 ---
 
-**Last Updated:** November 25, 2025 (Bug Fixes Complete, Ready for EPD Review)
+**Last Updated:** December 2, 2025 (Session 6 - UX Improvements & Bug Fixes)
 **Developer:** Amit Ayre
 **Designer:** Sofia A
 **MCP Support:** Nina R, Belu M (Dialtone MCP setup)
-**Feedback by :** Ted, Michelle
+**Feedback by:** Ted, Michelle, Sofia (EAP design)

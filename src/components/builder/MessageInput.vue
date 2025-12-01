@@ -35,12 +35,38 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  initialText: {
+    type: String,
+    default: '',
+  },
 })
 
 const emit = defineEmits(['send-message', 'improve'])
 
 const message = ref('')
 const textarea = ref(null)
+
+// Watch for external text changes (from suggestion chips)
+watch(() => props.initialText, (newText) => {
+  if (newText) {
+    // Append with comma if there's already text
+    if (message.value.trim()) {
+      message.value = message.value.trim() + ', ' + newText
+    } else {
+      message.value = newText
+    }
+
+    // Focus and move cursor to end
+    nextTick(() => {
+      if (textarea.value) {
+        textarea.value.focus()
+        const length = textarea.value.value.length
+        textarea.value.setSelectionRange(length, length)
+        autoResize()
+      }
+    })
+  }
+})
 
 // Auto-focus textarea when component mounts
 onMounted(() => {

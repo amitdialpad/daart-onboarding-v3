@@ -8,7 +8,6 @@
         :improvements="message.improvements || []"
         @apply-all="$emit('action-clicked', 'Apply all')"
         @review-each="$emit('action-clicked', 'Review each')"
-        @skip="$emit('action-clicked', 'Skip validation')"
       />
 
       <!-- Visual Studio Preview (special type) -->
@@ -46,11 +45,26 @@
         :items="message.progressItems || []"
       />
 
+      <!-- Template Skill Confirmation (shows capabilities + additional skills) -->
+      <TemplateSkillConfirmation
+        v-else-if="message.type === 'template-skill-confirmation'"
+        :agentGoal="message.agentGoal"
+        :preSelectedSkills="message.preSelectedSkills || []"
+        :additionalSkills="message.additionalSkills || []"
+        @continue="(allSkills) => $emit('template-skills-confirmed', allSkills)"
+      />
+
       <!-- Skill Selector (multi-select) -->
       <SkillSelector
         v-else-if="message.type === 'skill-selector'"
         :skills="message.skills || []"
         @continue="(selectedSkills) => $emit('skills-selected', selectedSkills)"
+      />
+
+      <!-- Path Choice Card (guided vs advanced builder) -->
+      <PathChoiceCard
+        v-else-if="message.type === 'path-choice'"
+        @path-selected="(path) => $emit('action-clicked', path)"
       />
 
       <!-- Simple Loading (special type) -->
@@ -81,6 +95,13 @@
       </button>
     </div>
 
+    <!-- Suggestion chips (for quick responses) -->
+    <SuggestionChips
+      v-if="message.suggestions && message.suggestions.length > 0"
+      :suggestions="message.suggestions"
+      @chip-clicked="$emit('suggestion-clicked', $event)"
+    />
+
     <!-- Timestamp (optional, can be shown on hover) -->
     <div class="message-timestamp">
       {{ formatTime(message.timestamp) }}
@@ -96,6 +117,9 @@ import WholePlanView from './WholePlanView.vue'
 import DocumentInput from './DocumentInput.vue'
 import LoadingProgress from './LoadingProgress.vue'
 import SkillSelector from './SkillSelector.vue'
+import TemplateSkillConfirmation from './TemplateSkillConfirmation.vue'
+import PathChoiceCard from './PathChoiceCard.vue'
+import SuggestionChips from './SuggestionChips.vue'
 
 const props = defineProps({
   message: {
@@ -104,11 +128,11 @@ const props = defineProps({
   },
 })
 
-defineEmits(['action-clicked', 'document-submitted', 'skills-selected'])
+defineEmits(['action-clicked', 'document-submitted', 'skills-selected', 'template-skills-confirmed', 'suggestion-clicked'])
 
 // Check if message is a step announcement
 const isStepAnnouncement = computed(() => {
-  return props.message.content && /^Step \d+ of 6:/.test(props.message.content)
+  return props.message.content && /^Step \d+ of \d+:/.test(props.message.content)
 })
 
 const formatTime = (timestamp) => {

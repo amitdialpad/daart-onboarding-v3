@@ -101,7 +101,7 @@ const phases = [
   },
   {
     number: 2,
-    title: 'Enable Connections',
+    title: 'Connect Tools',
     description: 'Connect tools and platforms your agent needs to access',
     items: [
       'Calendar integration (Google Calendar, Outlook)',

@@ -658,3 +658,432 @@ npx gh-pages -d dist
 - **Latest Commit:** Fix deployment state persistence
 
 ---
+
+## Session 5: EAP Design Alignment & Template Pre-Configuration (December 1, 2025)
+
+### Overview
+Major redesign of StartingPointView to align with EAP design, removed healthcare focus for industry-agnostic templates, and implemented smart template pre-configuration to reduce decision fatigue.
+
+### Key Changes Implemented
+
+#### 1. StartingPointView Redesign
+**File:** `src/views/StartingPointView.vue`
+
+**Design Updates:**
+- ✅ Removed free trial notice badge entirely
+- ✅ Updated copy to match EAP design:
+  - Subtitle: "Describe the agent's objectives and main responsibilities, and we will create it for you."
+  - Restored rotating placeholder examples (6 business scenarios)
+- ✅ Added dotted background pattern using radial gradient (20px spacing)
+- ✅ Set template grid max-width to 700px (centered, cleaner layout)
+- ✅ Added "Create manually" link below templates
+- ✅ Changed template interaction: click fills textarea (preview/edit) instead of direct navigation
+
+**Template Migration (Healthcare → Business):**
+- Replaced 6 healthcare-specific templates with 6 business-focused templates:
+  1. AI Receptionist - Handles calls, routes inquiries
+  2. Scheduling Assistant - Books appointments, calendar integration (marked "Popular")
+  3. Recruiting Agent - Screens candidates, collects applications
+  4. Account Manager - Updates CRM, syncs data
+  5. CRM Buddy - Updates records, syncs data
+  6. Sales Support Agent - Qualifies leads, books demos
+
+**Agent Naming Logic:**
+- Template selection: Uses template title (2-3 words)
+- Free-form input: Extracts first 2-3 words from user description
+- Ensures short, clean agent names in builder
+
+#### 2. Template Pre-Configuration System
+**Files Modified:**
+- `src/stores/conversation.js`
+- `src/views/ConversationalBuilderView.vue`
+
+**New Feature: Smart Defaults**
+- Each template now includes `preSelectedSkills` array
+- Example: Scheduling Assistant → ['appointment_scheduler', 'reminders']
+- Skills automatically added to agent store when template selected
+- New state: `'template_confirmation'`
+- User sees: "Your agent can schedule appointments, send reminders. Want to add more?"
+- Two options: "Continue building" or "Add more skills"
+
+**Flow Changes:**
+```
+OLD: Click template → Navigate → Choose path → Select skills manually
+NEW: Click template → Fill textarea → Start building → See pre-configured skills → Confirm or add more → Choose path
+```
+
+**Benefits:**
+- Templates feel more valuable (come with smart defaults)
+- Reduces decision fatigue
+- Faster time to value
+- Users can still customize after seeing what's included
+
+#### 3. New Conversation Flow State
+**Added to conversation.js:**
+- Modified `initializeConversation()` to accept `preSelectedSkills` parameter
+- Checks if template has pre-selected skills
+- If yes: Auto-adds skills, shows confirmation message
+- If no: Shows normal skill selection flow (free-form agents)
+- Created skill label mapping for readable confirmations
+
+**Added to ConversationalBuilderView.vue:**
+- Extract `preSelectedSkills` from query params
+- Extract `agentName` from query params (short name)
+- Pass both to `initializeConversation()`
+- Added handler for `'template_confirmation'` state:
+  - "Continue building" → Show path choice
+  - "Add more skills" → Show skill selector with existing skills pre-selected
+
+#### 4. Design System Updates
+**Dotted Background Pattern:**
+```css
+.starting-point {
+  background:
+    radial-gradient(circle, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+    var(--dt-color-surface-secondary);
+  background-size: 20px 20px;
+}
+```
+
+**Template Grid Centering:**
+```css
+.goals-grid-inline {
+  max-width: 700px;
+  margin: 0 auto;
+}
+```
+
+### Files Modified
+1. **src/views/StartingPointView.vue** (~718 lines)
+   - Removed free trial notice
+   - Updated copy and placeholder text
+   - Replaced all templates with business-focused versions
+   - Added preSelectedSkills to template data
+   - Changed selectGoal() to fill textarea
+   - Updated startBuilding() to extract short agent name and pass template data
+   - Added scrollToTextarea() function
+   - Added dotted background CSS
+   - Added "Create manually" link and styling
+
+2. **src/stores/conversation.js**
+   - Modified initializeConversation() signature (added preSelectedSkills param)
+   - Added template confirmation flow logic
+   - Created skill label mapping
+   - Added 'template_confirmation' state handling
+
+3. **src/views/ConversationalBuilderView.vue**
+   - Extract preSelectedSkills and agentName from query params
+   - Pass both to initializeConversation()
+   - Added template_confirmation state handler
+   - Handle "Continue building" and "Add more skills" actions
+
+4. **SESSION_5_SUMMARY.md** - Created (565 lines of comprehensive documentation)
+
+### Design Principles Applied
+
+**1. Templates Should Feel Valuable**
+- Pre-configured skills demonstrate immediate value
+- Users see what's included before committing
+
+**2. Reduce Decision Fatigue**
+- Smart defaults eliminate manual skill selection for template users
+- Clear confirmation shows what's included
+- Option to add more if needed
+
+**3. Show, Don't Just Tell**
+- Template fills textarea (preview before commit)
+- Confirmation lists specific skills in plain language
+- User can edit description before proceeding
+
+**4. Industry-Agnostic Design**
+- Business templates apply to any industry
+- Generic language (not healthcare-specific)
+- Broader appeal and applicability
+
+### User Experience Comparison
+
+**Before (Session 4):**
+- Healthcare-focused templates
+- Template click → direct navigation
+- Manual skill selection even with templates
+- Free trial notice visible
+- Long, technical explanations
+- Single static placeholder
+
+**After (Session 5):**
+- Business-focused templates (industry-agnostic)
+- Template click → fills textarea (preview/edit)
+- Pre-configured skills for templates
+- Clean design (no free trial notice)
+- Concise, professional copy
+- Rotating placeholder examples (6 scenarios)
+- Dotted background pattern
+- Short agent names (2-3 words)
+
+### Testing Status
+✅ Dev server running without errors
+✅ All template interactions working
+✅ Pre-selected skills flow tested end-to-end
+✅ Agent name extraction working correctly
+✅ Rotating placeholders displaying properly
+✅ Dotted background rendering correctly
+✅ "Create manually" link working
+
+### Known Limitations
+- Milestone label simplification deferred (will be addressed in future session per Sofia's feedback)
+- Template skill mapping currently hardcoded (production would use backend configuration)
+
+### Technical Debt
+None identified - all implementations clean and maintainable
+
+### Next Steps
+1. Test thoroughly on local environment
+2. Run production build
+3. Deploy to GitHub Pages
+4. Gather user feedback on new design
+5. Consider milestone label simplification in future session
+
+### GitHub Status
+- **Repository:** https://github.com/amitdialpad/daart-onboarding-v3-latest
+- **Live Demo:** https://amitdialpad.github.io/daart-onboarding-v3-latest/
+- **Branch:** main
+- **Status:** Ready for local testing and deployment
+
+---
+
+## Current State Summary (December 1, 2025 - End of Session 5)
+
+### Fully Working Features
+1. **Onboarding Flow** - Complete conversational builder with 6 phases
+2. **Template System** - Business-focused templates with smart defaults
+3. **Pre-Configuration** - Templates come with pre-selected skills
+4. **Navigation System** - Conditional navigation based on agent status
+5. **Test Mode** - Simulated conversations with AI responses
+6. **Deployment** - Channel selection, configuration, with persistent state
+7. **Monitor Dashboard** - Performance metrics, conversations, recommendations
+8. **Agent Overview** - Summary cards and configuration review
+9. **Agent Studio** - Placeholder for visual workflow builder
+10. **Knowledge** - Placeholder for knowledge base management
+
+### Latest Enhancements
+- ✅ Industry-agnostic design (business templates, not healthcare)
+- ✅ Template pre-configuration with smart skill defaults
+- ✅ Preview-before-commit (template fills textarea)
+- ✅ Short agent names (2-3 words)
+- ✅ Dotted background pattern matching EAP design
+- ✅ Rotating placeholder examples
+- ✅ Clean, minimal design (removed free trial notice)
+- ✅ "Create manually" option for free-form input
+
+### Design System
+- All Dialtone design tokens properly applied
+- Custom CSS for dotted background pattern
+- Centered template grid (700px max-width)
+- Responsive layout maintained
+
+### Ready For
+✅ Local testing and validation
+✅ Production build and deployment
+✅ EPD team review
+✅ User testing with business-focused templates
+
+### Developer Notes
+- See SESSION_5_SUMMARY.md for complete implementation details
+- All Session 5 changes documented with line numbers and code examples
+- Template pre-configuration system ready for backend integration
+- Clean separation between template and free-form flows
+
+---
+
+## Session 6: UX Improvements & Bug Fixes (December 2, 2025)
+
+### Overview
+Addressed user-reported bugs and UX issues related to navigation buttons and text input visibility during onboarding flow.
+
+### Key Issues Fixed
+
+#### 1. Text Input Visibility Bug
+**Problem**: Text input box was appearing during informational/transition messages when it shouldn't, confusing users.
+
+**Example Cases**:
+- "Perfect! Your basic safety rules are configured."
+- "Opening Agent Studio..."
+- "Step X of Y: ..." announcements
+
+**Root Cause**: Input visibility logic only checked for action buttons and state, not whether the message actually expected input.
+
+**Solution**: Enhanced shouldShowMessageInput logic in ConversationalBuilderView.vue:
+```javascript
+const shouldShowMessageInput = computed(() => {
+  // 1. Hide if action buttons present (user clicks, doesn't type)
+  if (lastMessage.actions && lastMessage.actions.length > 0) {
+    return false
+  }
+
+  // 2. Show if suggestion chips present (chips help user type)
+  if (lastMessage.suggestions && lastMessage.suggestions.length > 0) {
+    return true
+  }
+
+  // 3. For text input states, only show if message is actually asking for input
+  if (textInputStates.includes(state)) {
+    return lastMessage.content.includes('?') ||
+           lastMessage.content.toLowerCase().includes('describe') ||
+           lastMessage.content.toLowerCase().includes('tell me') ||
+           lastMessage.content.toLowerCase().includes('what')
+  }
+
+  return false
+})
+```
+
+**Impact**: Input box now only appears when system is actually expecting user input, creating cleaner UX.
+
+#### 2. Redundant Navigation Buttons
+**Problem**: Both "Start testing" and "Open Agent Studio" buttons were present at completion, but both navigated to Agent Studio (same destination).
+
+**Solution**:
+- Consolidated to single "Open Agent Studio" button
+- Updated message from "What would you like to do next?" to "Ready to continue?"
+- Simplified action handlers in handleBeginnerPhase5 and handleProPhase5
+
+**Files Modified**:
+- Lines 888-902: moveToPhase5() 
+- Lines 1151-1165: moveToProPhase5()
+- Lines 748-765: handleBeginnerPhase5()
+
+**Impact**: Cleaner, less confusing completion experience.
+
+#### 3. Duplicate Suggestion Chips
+**Problem**: Identity verification question showed large action buttons AND small duplicate suggestion chips below them, creating visual clutter.
+
+**Solution**: Removed suggestion chips (11th parameter) from identity verification questions:
+
+**Before**:
+```javascript
+conversationStore.addAIMessage(
+  "For identity verification, what method works best?",
+  'text',
+  ['Date of birth', 'Last 4 of phone', 'Account PIN', 'None needed'],
+  null, null, null, null, null, null, null,
+  ['Date of birth', 'Last 4 of phone', 'Account PIN', 'None needed'] // DUPLICATE
+)
+```
+
+**After**:
+```javascript
+conversationStore.addAIMessage(
+  "For identity verification, what method works best?",
+  'text',
+  ['Date of birth', 'Last 4 of phone', 'Account PIN', 'None needed']
+)
+```
+
+**Files Modified**:
+- Line 861-868: Beginner Phase 3 identity verification
+- Line 1216-1223: Pro Phase 3 identity verification
+
+**Impact**: Cleaner UI, removed redundant elements.
+
+### Files Modified
+1. **src/views/ConversationalBuilderView.vue**
+   - Lines 88-136: Enhanced shouldShowMessageInput logic
+   - Lines 888-902: Consolidated navigation at Phase 5 completion (beginner)
+   - Lines 1151-1165: Consolidated navigation at Phase 5 completion (pro)
+   - Lines 748-765: Simplified action handler
+   - Lines 861-868: Removed duplicate suggestion chips (beginner)
+   - Lines 1216-1223: Removed duplicate suggestion chips (pro)
+
+### Technical Details
+
+**Input Visibility Logic Flow**:
+1. Check for action buttons → hide input (user clicks, doesn't type)
+2. Check for suggestion chips → show input (chips populate field)
+3. Check if state expects text input AND message is a question → show input
+4. Otherwise → hide input (informational messages, transitions)
+
+**Question Detection Patterns**:
+- Contains "?"
+- Contains "what"
+- Contains "describe"
+- Contains "tell me"
+
+### Testing Status
+✅ Dev server running without errors
+✅ HMR updates successful
+✅ Input visibility tested across all phases
+✅ Navigation buttons verified
+✅ Suggestion chips removed from duplicate locations
+
+### Known Limitations
+User mentioned "there are bugs but we can look at them later" - suggests additional issues exist that weren't addressed in this session. These can be triaged in future sessions.
+
+### Deployment Instructions
+**Repository**: https://github.com/amitdialpad/daart-onboarding-v3-latest
+**Live URL**: https://amitdialpad.github.io/daart-onboarding-v3-latest/
+
+**Deployment Steps** (from SESSION_4_SUMMARY.md):
+```bash
+# 1. Build
+npm run build
+
+# 2. Commit changes
+git add -A
+git commit -m "Session 6: Fix input visibility and consolidate navigation"
+git push origin main
+
+# 3. Manual gh-pages deployment (REQUIRED - npx gh-pages has caching issues)
+cd dist
+git init
+git add -A
+git commit -m "Deploy Session 6 updates"
+git remote add upstream https://github.com/amitdialpad/daart-onboarding-v3-latest.git
+git fetch upstream gh-pages
+git checkout -b temp-gh-pages upstream/gh-pages
+git rm -rf .
+cp -r ../dist/* .
+git add -A
+git commit -m "Deploy Session 6: UX improvements and bug fixes"
+git push upstream temp-gh-pages:gh-pages
+cd ..
+rm -rf dist/.git
+git branch -D temp-gh-pages
+```
+
+### Status
+✅ **COMPLETE** - Input visibility fixed, navigation consolidated, duplicate chips removed
+
+---
+
+## Current State Summary (December 2, 2025 - End of Session 6)
+
+### Fully Working Features
+1. **Onboarding Flow** - Complete conversational builder with 6 phases
+2. **Template System** - Business-focused templates with smart defaults
+3. **Pre-Configuration** - Templates come with pre-selected skills
+4. **Navigation System** - Conditional navigation based on agent status
+5. **Test Mode** - Simulated conversations with AI responses
+6. **Deployment** - Channel selection, configuration, with persistent state
+7. **Monitor Dashboard** - Performance metrics, conversations, recommendations
+8. **Agent Overview** - Summary cards and configuration review
+9. **Agent Studio** - Placeholder for visual workflow builder
+10. **Knowledge** - Placeholder for knowledge base management
+
+### Latest Bug Fixes (Session 6)
+- ✅ Smart input visibility (hides during transitions)
+- ✅ Consolidated navigation buttons (single clear CTA)
+- ✅ Removed duplicate suggestion chips
+- ✅ Professional, clean UI
+
+### Ready For
+✅ Production deployment to GitHub Pages
+✅ User testing with improved UX
+✅ EPD team review
+
+### Developer Notes
+- Input visibility logic now considers message content, not just state
+- Navigation simplified at completion (single "Open Agent Studio" button)
+- Suggestion chips properly managed (no duplicates with action buttons)
+
+---
+

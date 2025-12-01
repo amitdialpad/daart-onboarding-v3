@@ -26,12 +26,15 @@
             @action-clicked="handleActionClick"
             @document-submitted="handleDocumentSubmit"
             @skills-selected="handleSkillsSelected"
+            @template-skills-confirmed="handleTemplateSkillsConfirmed"
+            @suggestion-clicked="handleSuggestionClick"
           />
         </div>
 
         <!-- Message Input (shown when user needs to type answers) -->
         <MessageInput
           v-if="shouldShowMessageInput"
+          :initial-text="suggestionText"
           @send-message="handleUserMessage"
         />
       </main>
@@ -59,14 +62,13 @@ import LoadingProgress from '../components/builder/LoadingProgress.vue'
 
 const showPreview = ref(false)
 
-// Define the 6 steps for the sidebar
+// Define the 5 steps for the sidebar
 const stepItems = [
   { label: 'Agent Foundation & Skills', description: 'Define your company context and the specific tasks you want your agent to handle' },
-  { label: 'Enable Connections', description: 'Connect tools and platforms your agent needs to access' },
+  { label: 'Connect Tools', description: 'Connect tools and platforms your agent needs to access' },
   { label: 'Safety & Guardrails', description: 'Set boundaries to ensure your agent operates safely' },
   { label: 'Validate & Refine', description: 'Review progress and make improvements' },
-  { label: 'Design Conversations', description: 'Build conversation flows for key interactions' },
-  { label: 'Test Agent', description: 'Validate everything works as expected' }
+  { label: 'Complete & Test', description: 'Review your agent and start testing' }
 ]
 
 const route = useRoute()
@@ -75,6 +77,7 @@ const conversationStore = useConversationStore()
 const agentStore = useAgentStore()
 
 const messagesContainer = ref(null)
+const suggestionText = ref('')
 
 // Only show steps sidebar during onboarding (hide after completion)
 const shouldShowStepsSidebar = computed(() => {
@@ -82,16 +85,54 @@ const shouldShowStepsSidebar = computed(() => {
 })
 
 // Show message input when user needs to type answers
+// Hide input when there are action buttons (user should click, not type)
+// Show input when there are suggestion chips (they populate the input field)
+// Show input only when we're actually expecting user input
 const shouldShowMessageInput = computed(() => {
   const state = conversationStore.currentState
-  return state === 'pro_asking_missing' ||
-         state === 'beginner_phase_1' ||
-         state === 'pro_configuring_form_collector' ||
-         state === 'pro_configuring_billing' ||
-         state === 'pro_configuring_question_answering' ||
-         state === 'pro_configuring_prescription_refills' ||
-         state === 'pro_configuring_reminders' ||
-         state === 'pro_configuring_custom'
+  const messages = conversationStore.allMessages
+
+  if (messages.length === 0) {
+    return false
+  }
+
+  const lastMessage = messages[messages.length - 1]
+
+  // If there are action buttons, hide input (user clicks button, doesn't type)
+  if (lastMessage.actions && lastMessage.actions.length > 0) {
+    return false
+  }
+
+  // If there are suggestion chips, show input (suggestions help user type)
+  if (lastMessage.suggestions && lastMessage.suggestions.length > 0) {
+    return true
+  }
+
+  // For states that expect text input, only show if the last message is a question
+  // This prevents showing input during informational/transition messages
+  const textInputStates = [
+    'pro_asking_missing',
+    'beginner_phase_1',
+    'beginner_phase_2',
+    'beginner_phase_3',
+    'pro_phase_3',
+    'pro_configuring_form_collector',
+    'pro_configuring_billing',
+    'pro_configuring_question_answering',
+    'pro_configuring_prescription_refills',
+    'pro_configuring_reminders',
+    'pro_configuring_custom'
+  ]
+
+  if (textInputStates.includes(state)) {
+    // Only show input if the message is asking a question or explicitly expects input
+    return lastMessage.content.includes('?') ||
+           lastMessage.content.toLowerCase().includes('describe') ||
+           lastMessage.content.toLowerCase().includes('tell me') ||
+           lastMessage.content.toLowerCase().includes('what')
+  }
+
+  return false
 })
 
 // Helper function to scroll to bottom
@@ -134,6 +175,17 @@ watch(
 // Initialize conversation when component mounts
 onMounted(() => {
   const agentGoal = route.query.goal || agentStore.goal
+  const agentName = route.query.agentName || agentStore.goal || agentGoal
+
+  // Extract preSelectedSkills if coming from template
+  let preSelectedSkills = null
+  if (route.query.preSelectedSkills) {
+    try {
+      preSelectedSkills = JSON.parse(route.query.preSelectedSkills)
+    } catch (e) {
+      console.error('Failed to parse preSelectedSkills:', e)
+    }
+  }
 
   if (!agentGoal) {
     // No goal provided, redirect back to starting point
@@ -149,11 +201,19 @@ onMounted(() => {
 
   // Initialize agent and conversation
   if (!agentStore.id) {
-    agentStore.initializeAgent(agentGoal)
+    // Use short agent name for display, full goal for context
+    agentStore.initializeAgent(agentName)
+  }
+
+  // Reset onboarding completion flag when starting/resuming onboarding
+  // This ensures sidebar stays hidden during the onboarding flow
+  if (agentStore.hasCompletedOnboarding) {
+    agentStore.hasCompletedOnboarding = false
   }
 
   if (conversationStore.messages.length === 0) {
-    conversationStore.initializeConversation(agentGoal)
+    // Pass full goal for conversation context
+    conversationStore.initializeConversation(agentName, preSelectedSkills)
   }
 
   // Always scroll to bottom when mounting (whether first time or returning from other pages)
@@ -174,6 +234,17 @@ onMounted(() => {
     }, 500)
   })
 })
+
+// Handle suggestion chip click
+const handleSuggestionClick = (suggestion) => {
+  // Update suggestion text to populate input
+  suggestionText.value = suggestion
+
+  // Reset after a brief moment to allow next click to trigger
+  setTimeout(() => {
+    suggestionText.value = ''
+  }, 100)
+}
 
 // Handle user message
 const handleUserMessage = (message) => {
@@ -268,8 +339,10 @@ const processUserInput = (input) => {
     } else if (state === 'pro_gathering_info') {
       // Handle pro path input
       handleProPath(input)
-    } else if (state === 'pro_phase_2') {
+    } else if (state === 'pro_phase_2_calendar') {
       handleProPhase2(input)
+    } else if (state === 'pro_phase_2_video') {
+      handleProPhase2Video(input)
     } else if (state === 'pro_phase_3') {
       handleProPhase3(input)
     } else if (state === 'pro_phase_4') {
@@ -319,10 +392,51 @@ const processAction = (action) => {
   }
 
   setTimeout(() => {
+    // Handle template confirmation actions
+    if (state === 'template_confirmation') {
+      if (action === 'Continue building') {
+        // Show path choice card
+        conversationStore.addAIMessage(
+          null, // No text content for this special type
+          'path-choice'
+        )
+        conversationStore.currentState = 'asking_path'
+        conversationStore.setWaitingForAI(false)
+        return
+      } else if (action === 'Add more skills') {
+        // Show skill selector to add more
+        conversationStore.addAIMessage(
+          "What additional skills should your agent have?",
+          'skill-selector',
+          null, // actions
+          null, // improvements
+          null, // progressItems
+          null, // title
+          [
+            { id: 'appointment_scheduler', label: 'Schedule appointments' },
+            { id: 'form_collector', label: 'Collect forms' },
+            { id: 'billing_helper', label: 'Answer billing questions' },
+            { id: 'question_answering', label: 'Answer common questions' },
+            { id: 'prescription_refills', label: 'Handle prescription refills' },
+            { id: 'reminders', label: 'Send reminders' },
+            { id: 'custom', label: "Something else (I'll describe it)" }
+          ]
+        )
+        conversationStore.currentState = ConversationState.PRO_SKILL_SELECTION
+        conversationStore.setWaitingForAI(false)
+        return
+      }
+    }
+
     if (action === 'Guide me step by step') {
       // User chose guided path - start configuring skills
       // (Step 1 was already announced before skill selection)
-      conversationStore.addAIMessage("Great! Let's configure your skills.")
+      const numSkills = agentStore.skills.length
+      const questionsToAsk = Math.min(2, numSkills)
+
+      conversationStore.addAIMessage(
+        `Perfect! I'll ask ${questionsToAsk} quick ${questionsToAsk === 1 ? 'question' : 'questions'} to configure your key skills.`
+      )
 
       setTimeout(() => {
         conversationStore.currentlyConfiguringSkill = 0
@@ -385,14 +499,7 @@ const processAction = (action) => {
       handleBeginnerPhase5(action)
     } else if (state === 'beginner_phase_6' || state === 'pro_phase_6') {
       // Test/Launch actions
-      if (action === 'Start testing') {
-        conversationStore.addAIMessage("Opening test mode...")
-
-        // Navigate immediately to prevent layout flash
-        // Mark onboarding as complete just before navigation
-        agentStore.completeOnboarding()
-        router.push('/test-mode')
-      } else if (action === 'Open Agent Studio') {
+      if (action === 'Open Agent Studio') {
         conversationStore.addAIMessage("Opening Agent Studio...")
 
         // Navigate to Agent Studio
@@ -442,8 +549,10 @@ const processAction = (action) => {
         agentStore.completeOnboarding()
         router.push('/monitor')
       }
-    } else if (state === 'pro_phase_2') {
+    } else if (state === 'pro_phase_2_calendar') {
       handleProPhase2(action)
+    } else if (state === 'pro_phase_2_video') {
+      handleProPhase2Video(action)
     } else if (state === 'pro_phase_3') {
       handleProPhase3(action)
     } else if (state === 'pro_phase_4') {
@@ -551,8 +660,49 @@ const handleBeginnerPhase3 = (input) => {
     // Business rules
     agentStore.updateGuardrails({ businessRules: [input] })
 
-    // Move to Phase 4
-    moveToPhase4()
+    // Offer progressive disclosure - option to add more guardrails
+    setTimeout(() => {
+      conversationStore.addAIMessage(
+        "These are the basic safety rules. Would you like to add more advanced guardrails?"
+      )
+    }, 500)
+
+    setTimeout(() => {
+      conversationStore.addAIMessage(
+        "Choose one:",
+        'text',
+        ['Continue with basics', 'Add more guardrails']
+      )
+    }, 1000)
+
+    conversationStore.currentPhase.currentQuestionIndex++
+  } else if (questionIndex === 2) {
+    // Progressive disclosure choice
+    if (input.includes('Add more')) {
+      // Ask advanced guardrail questions
+      conversationStore.addAIMessage(
+        "What additional safety measures should your agent follow?",
+        'text',
+        null, null, null, null, null, null, null, null,
+        ['Never share personal info', 'Always confirm before booking', 'Transfer to human if uncertain', 'Keep responses under 10 seconds']
+      )
+      conversationStore.currentPhase.currentQuestionIndex++
+    } else {
+      // Continue with basics - move to Phase 4
+      conversationStore.addAIMessage("Perfect! Your basic safety rules are configured.")
+      setTimeout(() => {
+        moveToPhase4()
+      }, 800)
+    }
+  } else if (questionIndex === 3) {
+    // Advanced guardrails
+    agentStore.updateGuardrails({ advancedRules: [input] })
+
+    conversationStore.addAIMessage("Advanced safety rules configured!")
+
+    setTimeout(() => {
+      moveToPhase4()
+    }, 800)
   }
 }
 
@@ -560,9 +710,77 @@ const handleBeginnerPhase3 = (input) => {
 const handleBeginnerPhase4 = (input) => {
   const inputLower = input.toLowerCase()
 
-  if (inputLower.includes('apply')) {
-    // Apply all improvements
-    conversationStore.addAIMessage("Applying all improvements...")
+  // Check which question in the phase we're on
+  const questionIndex = conversationStore.currentPhase.currentQuestionIndex
+
+  if (questionIndex === 0) {
+    // First question - Improve skill vs Review details
+    if (inputLower.includes('improve')) {
+      // Apply all improvements
+      conversationStore.addAIMessage("Applying all improvements...")
+
+      setTimeout(() => {
+        conversationStore.addAIMessage(
+          "All improvements applied! Your agent is configured and optimized."
+        )
+
+        setTimeout(() => {
+          // Check if pro or beginner path
+          if (conversationStore.userPath === 'pro') {
+            moveToProPhase5()
+          } else {
+            moveToPhase5()
+          }
+        }, 1000)
+      }, 2000)
+    } else if (inputLower.includes('review') || inputLower.includes('details')) {
+      // Show detailed validation card for progressive disclosure
+      const improvements = conversationStore.validationImprovements || []
+
+      conversationStore.addAIMessage(
+        "Here are the detailed improvements:",
+        'validation',
+        null,
+        improvements
+      )
+
+      // Move to next question index (waiting for validation card action)
+      conversationStore.currentPhase.currentQuestionIndex++
+    }
+  } else if (questionIndex === 1) {
+    // After reviewing details, handle validation card actions
+    if (inputLower.includes('apply')) {
+      // Apply all improvements
+      conversationStore.addAIMessage("Applying all improvements...")
+
+      setTimeout(() => {
+        conversationStore.addAIMessage(
+          "All improvements applied! Your agent is configured and optimized."
+        )
+
+        setTimeout(() => {
+          // Check if pro or beginner path
+          if (conversationStore.userPath === 'pro') {
+            moveToProPhase5()
+          } else {
+            moveToPhase5()
+          }
+        }, 1000)
+      }, 2000)
+    } else if (inputLower.includes('review')) {
+      // Review each individually
+      conversationStore.addAIMessage("Let's review each improvement individually. Which one would you like to start with?", 'text', [
+        'Buffer conflict resolution',
+        'Timezone display enhancement',
+        'New patient cap alert',
+        'Specialty routing fallback',
+        'Apply all and continue'
+      ])
+      conversationStore.currentPhase.currentQuestionIndex++
+    }
+  } else if (questionIndex >= 2) {
+    // Reviewing individually - just apply and move forward
+    conversationStore.addAIMessage("Applying improvements...")
 
     setTimeout(() => {
       conversationStore.addAIMessage(
@@ -578,73 +796,34 @@ const handleBeginnerPhase4 = (input) => {
         }
       }, 1000)
     }, 2000)
-  } else if (inputLower.includes('skip')) {
-    // Skip validation improvements
-    conversationStore.addAIMessage("Skipping improvements for now. Your agent is ready to proceed!")
-
-    setTimeout(() => {
-      // Check if pro or beginner path
-      if (conversationStore.userPath === 'pro') {
-        moveToProPhase5()
-      } else {
-        moveToPhase5()
-      }
-    }, 800)
-  } else if (inputLower.includes('review')) {
-    // Review each individually
-    conversationStore.addAIMessage("Let's review each improvement individually. Which one would you like to start with?", 'text', [
-      'Buffer conflict resolution',
-      'Timezone display enhancement',
-      'New patient cap alert',
-      'Specialty routing fallback',
-      'Apply all and continue'
-    ])
   }
 }
 
-// Handle Phase 5: Optional Skills
+// Handle Phase 5: Complete & Test (merged with Phase 6)
 const handleBeginnerPhase5 = (input) => {
   const lowerInput = input.toLowerCase()
 
-  // Check if user is done adding capabilities
-  if (lowerInput.includes('test') || lowerInput.includes('skip') || lowerInput.includes('done')) {
-    conversationStore.addAIMessage("Great! Your agent is ready to test.")
+  // Handle "Open Agent Studio" action
+  if (lowerInput.includes('agent studio') || lowerInput.includes('studio')) {
+    conversationStore.addAIMessage("Opening Agent Studio...")
+
+    // Mark onboarding as complete
+    agentStore.completeOnboarding()
+
     setTimeout(() => {
-      moveToPhase6()
+      conversationStore.addAIMessage("Redirecting to Agent Studio...")
+      setTimeout(() => {
+        // Navigate to Agent Studio where AI Copilot can help with testing
+        router.push('/agent-studio')
+      }, 800)
     }, 800)
-    return
   }
-
-  // Check for specific capabilities
-  if (lowerInput.includes('email') || lowerInput.includes('confirmation')) {
-    conversationStore.addAIMessage("Added email confirmations to your agent.")
-    agentStore.addSkill('email_confirmations', { enabled: true })
-  } else if (lowerInput.includes('sms') || lowerInput.includes('reminder')) {
-    conversationStore.addAIMessage("Added SMS reminders to your agent.")
-    agentStore.addSkill('sms_reminders', { enabled: true })
-  } else if (lowerInput.includes('reschedule') || lowerInput.includes('flow')) {
-    conversationStore.addAIMessage("Added reschedule flows to your agent.")
-    agentStore.addSkill('reschedule_flows', { enabled: true })
-  } else {
-    // Fallback - acknowledge and ask if they want more
-    conversationStore.addAIMessage(`Got it! I'll add ${input} to your agent.`)
-  }
-
-  // Ask if they want to add more capabilities
-  setTimeout(() => {
-    conversationStore.addAIMessage("Would you like to add more capabilities?", 'text', [
-      'Add email confirmations',
-      'Add SMS reminders',
-      'Add reschedule flows',
-      "Done - let's test"
-    ])
-  }, 800)
 }
 
 // Move to Phase 2: Connections
 const moveToPhase2 = () => {
   conversationStore.currentPhase.number = 2
-  conversationStore.currentPhase.name = 'Enable Connections'
+  conversationStore.currentPhase.name = 'Connect Your Tools'
   conversationStore.currentPhase.status = 'in_progress'
   conversationStore.currentPhase.currentQuestionIndex = 0
 
@@ -657,9 +836,9 @@ const moveToPhase2 = () => {
   // Move state
   conversationStore.currentState = 'beginner_phase_2'
 
-  // Announce step
+  // Announce step with friendlier wording
   conversationStore.addAIMessage(
-    "Step 2 of 6: Enable Connections"
+    "Step 2 of 5: Connect Your Tools"
   )
 
   // Ask about calendar systems
@@ -689,16 +868,24 @@ const moveToPhase3 = () => {
 
   // Announce step
   conversationStore.addAIMessage(
-    "Step 3 of 6: Safety & Guardrails"
+    "Step 3 of 5: Safety & Guardrails"
   )
 
+  // Explain what guardrails are
   setTimeout(() => {
     conversationStore.addAIMessage(
-      "Now let's set up safety rules. For identity verification, what method works best?",
+      "Guardrails are safety rules that keep your agent within boundaries - like requiring caller verification before sharing sensitive information or preventing double-bookings."
+    )
+  }, 700)
+
+  // Ask about verification method
+  setTimeout(() => {
+    conversationStore.addAIMessage(
+      "For identity verification, what method works best for your business?",
       'text',
       ['Date of birth', 'Last 4 of phone', 'Account PIN', 'None needed']
     )
-  }, 500)
+  }, 1400)
 }
 
 // Move to Phase 4: Validation
@@ -717,7 +904,7 @@ const moveToPhase4 = () => {
 
   // Announce step
   conversationStore.addAIMessage(
-    "Step 4 of 6: Validate & Refine"
+    "Step 4 of 5: Validate & Refine"
   )
 
   setTimeout(() => {
@@ -726,11 +913,12 @@ const moveToPhase4 = () => {
 
   // Simulate validation
   setTimeout(() => {
-    // Add validation card with improvements
+    // Store improvements for later (if user wants to review details)
     const improvements = [
       {
         title: 'Buffer conflict resolution',
         type: 'optimization',
+        critical: false,
         description: "You've set a 15-minute buffer between appointments and a 12:30-1:30 PM lunch break.",
         details: "I recommend adding a 5-minute prep buffer before the first afternoon appointment (at 1:30 PM) to prevent back-to-back scheduling issues.",
         impact: "Prevents double-booking issues and gives staff time to prepare for afternoon appointments"
@@ -738,6 +926,7 @@ const moveToPhase4 = () => {
       {
         title: 'Timezone display enhancement',
         type: 'ux',
+        critical: true,
         description: "For patients in different time zones, the agent should display times in both the patient's local time AND your office time.",
         details: "This reduces confusion when patients book appointments, especially if they're calling from Mountain or Eastern time zones while your office is in Pacific time.",
         impact: "Reduces booking errors and patient confusion by 40%"
@@ -745,6 +934,7 @@ const moveToPhase4 = () => {
       {
         title: 'New patient cap alert',
         type: 'safety',
+        critical: true,
         description: "Your 5-new-patient-per-day cap should trigger proactive messaging.",
         details: "When only 1-2 slots remain for new patients, the agent should immediately offer next-day alternatives rather than showing unavailable times.",
         impact: "Improves patient experience and reduces frustration from seeing 'unavailable' times"
@@ -752,47 +942,97 @@ const moveToPhase4 = () => {
       {
         title: 'Specialty routing fallback',
         type: 'enhancement',
+        critical: false,
         description: "When Dr. Martinez (pediatrics) or Dr. Chen (cardiology) are unavailable, the agent lacks clear guidance.",
         details: "The agent should explicitly ask if the patient wants to wait for that specialist or see a general practitioner for non-urgent cases.",
         impact: "Ensures patients get appropriate care routing and reduces missed appointment opportunities"
       }
     ]
 
+    // Store improvements in conversation store for later access
+    conversationStore.validationImprovements = improvements
+
+    // Count critical vs optional
+    const criticalCount = improvements.filter(i => i.critical).length
+    const optionalCount = improvements.filter(i => !i.critical).length
+
+    // Show simplified summary instead of detailed card
     conversationStore.addAIMessage(
-      null, // No text content, ValidationCard will render
-      'validation',
-      null,
-      improvements // Pass improvements as extra data
+      `Found ${improvements.length} improvements (${criticalCount} critical, ${optionalCount} optional) that will enhance your agent's performance.`
     )
+
+    // Show primary action buttons
+    setTimeout(() => {
+      conversationStore.addAIMessage(
+        "What would you like to do?",
+        'text',
+        ['Improve skill', 'Review details']
+      )
+    }, 700)
   }, 2000)
 }
 
-// Move to Phase 5: Optional Skills
+// Move to Phase 5: Complete & Test (merged with Phase 6)
 const moveToPhase5 = () => {
   conversationStore.currentPhase.number = 5
-  conversationStore.currentPhase.name = 'Additional Skills'
+  conversationStore.currentPhase.name = 'Complete & Test'
   conversationStore.currentPhase.status = 'in_progress'
   conversationStore.currentPhase.currentQuestionIndex = 0
 
   conversationStore.updateMilestone({
     completed: 'Validation complete',
-    current: 'Optional skills',
+    current: 'Ready to test',
   })
 
   conversationStore.currentState = 'beginner_phase_5'
 
+  // Update agent status to 'ready' (not yet deployed)
+  agentStore.updateStatus('ready')
+
   // Announce step
   conversationStore.addAIMessage(
-    "Step 5 of 6: Design Conversations"
+    "Step 5 of 5: Complete & Test"
   )
 
+  // Success message
   setTimeout(() => {
     conversationStore.addAIMessage(
-      "Your agent is ready! Want to add more capabilities?",
-      'text',
-      ['Add confirmations', 'Add reminders', 'Skip - test now']
+      "Great job! Your agent is configured and ready to go."
     )
-  }, 500)
+  }, 600)
+
+  // Show capabilities summary
+  setTimeout(() => {
+    // Deduplicate skills by type
+    const uniqueSkillTypes = [...new Set(agentStore.skills.map(skill => skill.type))]
+    const skills = uniqueSkillTypes.map(type => formatSkillTypeName(type))
+
+    // Deduplicate connections by name
+    const uniqueConnectionNames = [...new Set(agentStore.connections.map(conn => conn.name))]
+    const connections = uniqueConnectionNames.join(', ')
+
+    const guardrails = agentStore.guardrails.safetyRules.length > 0 ? 'Yes' : 'None'
+
+    conversationStore.addAIMessage(
+      `Here's what your agent can do:\n\n✓ Skills: ${skills.join(', ')}\n✓ Connected tools: ${connections}\n✓ Safety guardrails: ${guardrails}\n✓ Validated and optimized`
+    )
+  }, 1300)
+
+  // Show Agent Studio preview/teaser
+  setTimeout(() => {
+    conversationStore.addAIMessage(
+      "From here, you can jump into Agent Studio where you can test your agent with the AI Copilot and visually design and modify the conversation flow with a drag-and-drop interface."
+    )
+  }, 2100)
+
+  // Show single clear action button
+  setTimeout(() => {
+    conversationStore.addAIMessage(
+      "Ready to continue?",
+      'text',
+      ['Open Agent Studio']
+    )
+  }, 2800)
 }
 
 // Move to Phase 6: Test
@@ -811,7 +1051,7 @@ const moveToPhase6 = () => {
   // Update agent status to 'ready' (not yet deployed)
   agentStore.updateStatus('ready')
 
-  // Announce step
+  // Announce step (Note: Phase 6 is now merged into Phase 5)
   conversationStore.addAIMessage(
     "Step 6 of 6: Test Agent"
   )
@@ -907,40 +1147,63 @@ const handleProPath = (documentText = null) => {
 // Pro path Phase 2: Connections (faster)
 const moveToProPhase2 = () => {
   conversationStore.currentPhase.number = 2
-  conversationStore.currentPhase.name = 'Enable Connections'
-  conversationStore.currentState = 'pro_phase_2'
+  conversationStore.currentPhase.name = 'Connect Your Tools'
+  conversationStore.currentState = 'pro_phase_2_calendar'
 
   conversationStore.updateMilestone({
     completed: 'Foundation configured',
     current: 'Connections: in progress'
   })
 
-  // Announce step
+  // Announce step with friendlier wording
   conversationStore.addAIMessage(
-    "Step 2 of 6: Enable Connections"
+    "Step 2 of 5: Connect Your Tools"
   )
 
+  // Ask for calendar first (one tool at a time for OAuth)
   setTimeout(() => {
     conversationStore.addAIMessage(
-      "Which tools do you use?",
+      "Let's start with your calendar. Which one do you use?",
       'text',
-      ['Google Calendar + Zoom', 'Microsoft Calendar + Teams', 'Custom setup']
+      ['Google Calendar', 'Microsoft Calendar', 'Other']
     )
   }, 500)
 }
 
-// Handle pro path Phase 2
+// Handle pro path Phase 2 - Calendar selection
 const handleProPhase2 = (input) => {
-  // Save connection based on selection
+  // Save calendar connection
   if (input.includes('Google')) {
     agentStore.addConnection({ type: 'calendar', name: 'Google Calendar' })
-    agentStore.addConnection({ type: 'video', name: 'Zoom' })
+    conversationStore.addAIMessage("Got it! Processing your scheduling requirements...")
   } else if (input.includes('Microsoft')) {
     agentStore.addConnection({ type: 'calendar', name: 'Microsoft Calendar' })
+    conversationStore.addAIMessage("Got it! Processing your scheduling requirements...")
+  } else if (input.includes('Other')) {
+    conversationStore.addAIMessage("Got it! We'll set that up later.")
+  }
+
+  // Now ask for video tool (second tool, one at a time)
+  setTimeout(() => {
+    conversationStore.addAIMessage(
+      "Now for video calls. Which tool do you use?",
+      'text',
+      ['Zoom', 'Microsoft Teams', 'Other', 'None']
+    )
+    conversationStore.currentState = 'pro_phase_2_video'
+  }, 1500)
+}
+
+// Handle pro path Phase 2 - Video tool selection
+const handleProPhase2Video = (input) => {
+  // Save video connection
+  if (input.includes('Zoom')) {
+    agentStore.addConnection({ type: 'video', name: 'Zoom' })
+  } else if (input.includes('Teams')) {
     agentStore.addConnection({ type: 'video', name: 'Microsoft Teams' })
   }
 
-  conversationStore.addAIMessage("Connections configured!")
+  conversationStore.addAIMessage("Perfect! I have all the details I need.")
 
   setTimeout(() => {
     moveToProPhase3()
@@ -960,32 +1223,81 @@ const moveToProPhase3 = () => {
 
   // Announce step
   conversationStore.addAIMessage(
-    "Step 3 of 6: Safety & Guardrails"
+    "Step 3 of 5: Safety & Guardrails"
   )
 
+  // Explain guardrails briefly
   setTimeout(() => {
     conversationStore.addAIMessage(
-      "Quick safety check - verification method?",
-      'text',
-      ['Date of birth', 'Account PIN', 'Skip verification']
+      "Guardrails are safety rules that keep your agent operating within safe boundaries."
     )
-  }, 500)
+  }, 600)
+
+  // Ask verification
+  setTimeout(() => {
+    conversationStore.addAIMessage(
+      "For identity verification, what method do you use?",
+      'text',
+      ['Date of birth', 'Account PIN', 'Last 4 of phone', 'Skip verification']
+    )
+  }, 1200)
 }
 
 // Handle pro path Phase 3
 const handleProPhase3 = (input) => {
-  agentStore.updateGuardrails({
-    identityVerification: input,
-    safetyRules: ['Never invent availability', 'Read back before confirming', 'Keep responses under 10 seconds']
-  })
+  const questionIndex = conversationStore.currentPhase.currentQuestionIndex || 0
 
-  // Success message for safety
-  conversationStore.addAIMessage("Safety configured!")
+  if (questionIndex === 0) {
+    // First question - verification method
+    agentStore.updateGuardrails({
+      identityVerification: input,
+      safetyRules: ['Never invent availability', 'Read back before confirming', 'Keep responses under 10 seconds']
+    })
 
-  setTimeout(() => {
-    // Move directly to Phase 4 (Validation)
-    moveToProPhase4()
-  }, 1000)
+    // Offer progressive disclosure
+    setTimeout(() => {
+      conversationStore.addAIMessage(
+        "Basic safety rules are set. Want to add more advanced guardrails?"
+      )
+    }, 500)
+
+    setTimeout(() => {
+      conversationStore.addAIMessage(
+        "Choose one:",
+        'text',
+        ['Continue with basics', 'Add more guardrails']
+      )
+    }, 1000)
+
+    conversationStore.currentPhase.currentQuestionIndex = 1
+  } else if (questionIndex === 1) {
+    // Progressive disclosure choice
+    if (input.includes('Add more')) {
+      // Ask advanced guardrails
+      conversationStore.addAIMessage(
+        "What additional safety measures should your agent follow?",
+        'text',
+        null, null, null, null, null, null, null, null,
+        ['Never share personal info', 'Always confirm before booking', 'Transfer to human if uncertain', 'Keep responses concise']
+      )
+      conversationStore.currentPhase.currentQuestionIndex = 2
+    } else {
+      // Continue with basics
+      conversationStore.addAIMessage("Perfect! Safety configured.")
+      setTimeout(() => {
+        moveToProPhase4()
+      }, 800)
+    }
+  } else if (questionIndex === 2) {
+    // Advanced guardrails
+    agentStore.updateGuardrails({ advancedRules: [input] })
+
+    conversationStore.addAIMessage("Advanced safety rules configured!")
+
+    setTimeout(() => {
+      moveToProPhase4()
+    }, 800)
+  }
 }
 
 // Pro path Phase 4: Validation (same as beginner)
@@ -1002,29 +1314,64 @@ const handleProPhase4 = (input) => {
 // Pro path Phase 5: Design Conversations (now same as beginner)
 const moveToProPhase5 = () => {
   conversationStore.currentPhase.number = 5
-  conversationStore.currentPhase.name = 'Design Conversations'
+  conversationStore.currentPhase.name = 'Complete & Test'
   conversationStore.currentPhase.status = 'in_progress'
   conversationStore.currentPhase.currentQuestionIndex = 0
 
   conversationStore.updateMilestone({
     completed: 'Validation complete',
-    current: 'Designing conversations'
+    current: 'Ready to test'
   })
 
   conversationStore.currentState = 'pro_phase_5'
 
+  // Update agent status to 'ready' (not yet deployed)
+  agentStore.updateStatus('ready')
+
   // Announce step
   conversationStore.addAIMessage(
-    "Step 5 of 6: Design Conversations"
+    "Step 5 of 5: Complete & Test"
   )
 
+  // Success message
   setTimeout(() => {
     conversationStore.addAIMessage(
-      "Your agent is ready! Want to add more capabilities?",
-      'text',
-      ['Add confirmations', 'Add reminders', 'Skip - test now']
+      "Great job! Your agent is configured and ready to go."
     )
-  }, 500)
+  }, 600)
+
+  // Show capabilities summary
+  setTimeout(() => {
+    // Deduplicate skills by type
+    const uniqueSkillTypes = [...new Set(agentStore.skills.map(skill => skill.type))]
+    const skills = uniqueSkillTypes.map(type => formatSkillTypeName(type))
+
+    // Deduplicate connections by name
+    const uniqueConnectionNames = [...new Set(agentStore.connections.map(conn => conn.name))]
+    const connections = uniqueConnectionNames.join(', ')
+
+    const guardrails = agentStore.guardrails.safetyRules.length > 0 ? 'Yes' : 'None'
+
+    conversationStore.addAIMessage(
+      `Here's what your agent can do:\n\n✓ Skills: ${skills.join(', ')}\n✓ Connected tools: ${connections}\n✓ Safety guardrails: ${guardrails}\n✓ Validated and optimized`
+    )
+  }, 1300)
+
+  // Show Agent Studio preview/teaser
+  setTimeout(() => {
+    conversationStore.addAIMessage(
+      "From here, you can jump into Agent Studio where you can test your agent with the AI Copilot and visually design and modify the conversation flow with a drag-and-drop interface."
+    )
+  }, 2100)
+
+  // Show single clear action button
+  setTimeout(() => {
+    conversationStore.addAIMessage(
+      "Ready to continue?",
+      'text',
+      ['Open Agent Studio']
+    )
+  }, 2800)
 }
 
 // Handle Save & Exit
@@ -1053,15 +1400,18 @@ const handleSkillsSelected = (selectedSkillIds) => {
     agentStore.addSkill(skillId)
   })
 
-  // Get skill labels for confirmation message
-  const skillLabels = agentStore.skills.map(skill => {
-    const typeMap = {
-      'appointment_scheduler': 'Schedule appointments',
-      'form_collector': 'Collect forms',
-      'billing_helper': 'Answer billing questions'
-    }
-    return typeMap[skill.type] || skill.type
-  })
+  // Get skill labels for confirmation message (only for selected skills)
+  const typeMap = {
+    'appointment_scheduler': 'Schedule appointments',
+    'form_collector': 'Collect forms',
+    'billing_helper': 'Answer billing questions',
+    'question_answering': 'Answer common questions',
+    'prescription_refills': 'Handle prescription refills',
+    'reminders': 'Send reminders',
+    'routing': 'Route inquiries',
+    'custom': 'Custom tasks'
+  }
+  const skillLabels = selectedSkillIds.map(skillId => typeMap[skillId] || skillId)
 
   // Acknowledge selection
   conversationStore.addAIMessage(`Great! Your agent will have these skills: ${skillLabels.join(', ')}`)
@@ -1069,48 +1419,160 @@ const handleSkillsSelected = (selectedSkillIds) => {
   // NOW ask for path choice (guided vs advanced) - AFTER skills are selected
   setTimeout(() => {
     conversationStore.addAIMessage(
-      "How would you like to configure your agent?",
-      'text',
-      [
-        'Guide me step by step',
-        "I'll configure it myself in the advanced builder"
-      ]
+      null, // No text content for this special type
+      'path-choice'
     )
     conversationStore.currentState = 'asking_path'
   }, 800)
 }
 
-// Ask configuration questions for current skill
+// Handle template skill confirmation (includes pre-selected + additional skills)
+const handleTemplateSkillsConfirmed = (allSkillIds) => {
+  // The pre-selected skills are already in the agent store (added when template was selected)
+  // Now we need to add any additional skills the user selected
+
+  // Get current skills in store
+  const currentSkillIds = agentStore.skills.map(s => s.type)
+
+  // Add only the new skills (those not already in store)
+  allSkillIds.forEach(skillId => {
+    if (!currentSkillIds.includes(skillId)) {
+      agentStore.addSkill(skillId)
+    }
+  })
+
+  // Get skill labels for confirmation message (only unique confirmed skills)
+  const typeMap = {
+    'appointment_scheduler': 'Schedule appointments',
+    'form_collector': 'Collect forms',
+    'billing_helper': 'Answer billing questions',
+    'question_answering': 'Answer common questions',
+    'prescription_refills': 'Handle prescription refills',
+    'reminders': 'Send reminders',
+    'routing': 'Route inquiries',
+    'custom': 'Custom tasks'
+  }
+  // Remove duplicates and map to labels
+  const uniqueSkillIds = [...new Set(allSkillIds)]
+  const skillLabels = uniqueSkillIds.map(skillId => typeMap[skillId] || skillId)
+
+  // Acknowledge selection
+  conversationStore.addAIMessage(`Perfect! Your agent will have these skills: ${skillLabels.join(', ')}`)
+
+  // Ask for path choice (guided vs advanced)
+  setTimeout(() => {
+    conversationStore.addAIMessage(
+      null, // No text content for this special type
+      'path-choice'
+    )
+    conversationStore.currentState = 'asking_path'
+  }, 800)
+}
+
+// Ask configuration questions for current skill (limit to 2 questions max)
+// Helper function to format skill type names to human-readable format
+const formatSkillTypeName = (type) => {
+  const typeMap = {
+    'appointment_scheduler': 'appointment scheduling',
+    'form_collector': 'form collection',
+    'billing_helper': 'billing assistance',
+    'question_answering': 'Q&A',
+    'prescription_refills': 'prescription refills',
+    'reminders': 'reminders',
+    'routing': 'routing',
+    'custom': 'custom tasks',
+    'email_confirmations': 'email confirmations',
+    'sms_reminders': 'SMS reminders',
+    'reschedule_flows': 'reschedule flows',
+    'answer_common_questions': 'answer common questions',
+    'customer_support': 'customer support',
+    'refund_processor': 'refund processing'
+  }
+
+  // If type is in the map, return it
+  if (typeMap[type]) {
+    return typeMap[type]
+  }
+
+  // Otherwise, format it nicely: convert underscores to spaces and lowercase
+  return type.replace(/_/g, ' ').toLowerCase()
+}
+
 const askSkillConfigQuestions = () => {
   const skillIndex = conversationStore.currentlyConfiguringSkill
   const skill = agentStore.skills[skillIndex]
 
-  if (!skill) {
-    // No more skills to configure, move to Phase 2
+  // Limit to 2 questions max - auto-configure the rest with smart defaults
+  if (!skill || skillIndex >= 2) {
+    // Only show message if we haven't done this already (check if we're exactly at index 2)
+    // This prevents showing the message multiple times if function is called again
+    if (skillIndex === 2 && skillIndex < agentStore.skills.length) {
+      const remainingSkills = agentStore.skills.slice(skillIndex)
+
+      // Deduplicate skill types to avoid showing duplicates
+      const uniqueSkillTypes = [...new Set(remainingSkills.map(s => s.type))]
+      const skillNames = uniqueSkillTypes.map(type => formatSkillTypeName(type))
+
+      conversationStore.addAIMessage(
+        `I'll configure ${skillNames.join(', ')} with smart defaults based on best practices.`
+      )
+    }
+
+    // Move to Phase 2
     setTimeout(() => {
       moveToProPhase2()
     }, 800)
     return
   }
 
-  // Ask skill-specific questions
+  // Ask skill-specific questions for first 2 skills only
   if (skill.type === 'appointment_scheduler') {
-    conversationStore.addAIMessage("What are your business hours for appointments?")
+    conversationStore.addAIMessage(
+      "What are your business hours for appointments?",
+      'text',
+      null, null, null, null, null, null, null, null,
+      ['Monday-Friday, 9 AM - 5 PM', 'Monday-Saturday, 8 AM - 6 PM', '24/7 availability', 'Custom schedule']
+    )
     conversationStore.currentState = 'pro_asking_missing'
   } else if (skill.type === 'form_collector') {
-    conversationStore.addAIMessage("What forms do you need to collect?")
+    conversationStore.addAIMessage(
+      "What forms do you need to collect?",
+      'text',
+      null, null, null, null, null, null, null, null,
+      ['Patient intake forms', 'Insurance information', 'Contact forms', 'Medical history']
+    )
     conversationStore.currentState = 'pro_configuring_form_collector'
   } else if (skill.type === 'billing_helper') {
-    conversationStore.addAIMessage("What billing questions should your agent handle?")
+    conversationStore.addAIMessage(
+      "What billing questions should your agent handle?",
+      'text',
+      null, null, null, null, null, null, null, null,
+      ['Payment methods', 'Refund policies', 'Invoice questions', 'Billing cycles']
+    )
     conversationStore.currentState = 'pro_configuring_billing'
   } else if (skill.type === 'question_answering') {
-    conversationStore.addAIMessage("What types of questions should your agent be able to answer?")
+    conversationStore.addAIMessage(
+      "What types of questions should your agent be able to answer?",
+      'text',
+      null, null, null, null, null, null, null, null,
+      ['Hours and location', 'Services offered', 'Pricing', 'General FAQs']
+    )
     conversationStore.currentState = 'pro_configuring_question_answering'
   } else if (skill.type === 'prescription_refills') {
-    conversationStore.addAIMessage("How should your agent handle prescription refill requests?")
+    conversationStore.addAIMessage(
+      "How should your agent handle prescription refill requests?",
+      'text',
+      null, null, null, null, null, null, null, null,
+      ['Verify patient identity', 'Check prescription status', 'Process refill requests', 'Notify pharmacy']
+    )
     conversationStore.currentState = 'pro_configuring_prescription_refills'
   } else if (skill.type === 'reminders') {
-    conversationStore.addAIMessage("What types of reminders should your agent send?")
+    conversationStore.addAIMessage(
+      "What types of reminders should your agent send?",
+      'text',
+      null, null, null, null, null, null, null, null,
+      ['Appointment reminders', 'Payment due dates', 'Follow-up care', 'Medication schedules']
+    )
     conversationStore.currentState = 'pro_configuring_reminders'
   } else if (skill.type === 'custom') {
     conversationStore.addAIMessage("Please describe the custom skill you'd like your agent to have:")
